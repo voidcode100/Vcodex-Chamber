@@ -25,7 +25,7 @@
   "scripts": {
     "dev": "node scripts/dev-vscode.mjs",
     "build": "bun run --cwd packages/vscode build",
-    "type-check": "bun run --cwd packages/vscode type-check && bun run --cwd packages/ui type-check",
+    "type-check": "bun run --cwd packages/vscode type-check && bun run --cwd packages/ui type-check && tsc --project packages/codex-audio-arm/tsconfig.json",
     "test": "node scripts/verify-windowssender.mjs && node scripts/verify-dictation-transport.mjs",
     "test:ui": "node scripts/verify-windowssender-ui.mjs && node scripts/verify-auth-gate.mjs && node scripts/verify-teleprompter.mjs",
     "release": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-release.ps1",
@@ -34,7 +34,7 @@
     "vscode:build": "bun run --cwd packages/vscode build",
     "vscode:package": "bun run --cwd packages/vscode package",
     "vscode:package:all": "node scripts/build-vsix.mjs --target all",
-    "test:packaging": "node --test scripts/tests/packaging.test.mjs scripts/tests/codex-releases.test.mjs scripts/tests/codex-audio.test.mjs scripts/tests/publish-release.test.mjs",
+    "test:packaging": "node --test scripts/tests/packaging.test.mjs scripts/tests/codex-releases.test.mjs scripts/tests/codex-audio.test.mjs scripts/tests/arm-audio.test.mjs scripts/tests/publish-release.test.mjs",
     "vscode:type-check": "bun run --cwd packages/vscode type-check"
   },
   "dependencies": {

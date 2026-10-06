@@ -23,14 +23,14 @@ export function releasePlan(env, directory = 'release') {
     if (env.GITHUB_EVENT_NAME !== 'push' || env.GITHUB_REF !== `refs/tags/${tag}`) throw new Error('Stable release requires a matching version tag push');
   }
   const checksumFiles = ['win32-x64', 'win32-arm64', 'linux-x64', 'linux-arm64'].map(target => `Vcodex-Chamber-${version}-${target}.vsix`);
-  checksumFiles.push(`Vcodex-Chamber-WindowsSender-${version}-win-x64.zip`, 'codex-runtime.json');
+  checksumFiles.push(`Vcodex-Audio-ARM-${version}-linux-arm64.vsix`, `Vcodex-Chamber-WindowsSender-${version}-win-x64.zip`, 'codex-runtime.json');
   const assets = [...checksumFiles, 'SHA256SUMS.txt'];
   const args = ['release', 'create', tag, ...assets.map(file => join(directory, file))];
   if (manual) args.push('--target', env.GITHUB_SHA, '--prerelease');
   else args.push('--verify-tag');
   if (env.RELEASE_DRAFT === 'true') args.push('--draft');
   args.push('--title', `Vcodex-Chamber ${tag}`, '--notes',
-    `Built from ${env.GITHUB_SHA}. Windows/Linux x64 and ARM64 VSIX packages include the stable upstream Codex resolved once for this build. See codex-runtime.json for Codex/Codex Audio versions and integrity. WindowsSender is Windows x64 only. All platform build checks passed before release. See README and docs/builds.md for installation and validation scope.`);
+    `Built from ${env.GITHUB_SHA}. Windows/Linux x64 and ARM64 VSIX packages include the stable upstream Codex resolved once for this build. See codex-runtime.json for Codex/Codex Audio versions and integrity. Linux ARM64 recording uses the separate Vcodex Audio ARM VSIX; other supported hosts use official Codex Audio. WindowsSender is Windows x64 only. All platform build checks passed before release. See README and docs/builds.md for installation and validation scope.`);
   return { tag, args, checksumFiles, assets };
 }
 

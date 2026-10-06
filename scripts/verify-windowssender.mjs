@@ -18,7 +18,7 @@ try {
   await require('esbuild').build({ entryPoints: [join(root, 'scripts/fixtures/windowssender-manager.test.ts')], bundle: true, platform: 'node', format: 'cjs', outfile: managerFile,
     plugins: [{ name: 'vscode-host-fixture', setup(build) {
       build.onResolve({ filter: /^vscode$/ }, () => ({ path: 'vscode', namespace: 'fixture' }));
-      build.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: `export const workspace={getConfiguration:()=>({get:(key,fallback)=>fallback})}; export const Uri={file:fsPath=>({fsPath})}; export const FileType={Directory:2}; export class Disposable{constructor(fn){this.dispose=fn}} export const commands={executeCommand:()=>{throw Error('Microphone is mocked by the fixture')}};` }));
+      build.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: `export const extensions={getExtension:()=>undefined}; export const env={remoteName:undefined}; export const workspace={getConfiguration:()=>({get:(key,fallback)=>fallback})}; export const Uri={file:fsPath=>({fsPath})}; export const FileType={Directory:2}; export class Disposable{constructor(fn){this.dispose=fn}} export const commands={executeCommand:()=>{throw Error('Microphone is mocked by the fixture')}};` }));
     } }],
   });
   const result = spawnSync(process.execPath, ['--test', file, managerFile], { cwd: root, stdio: 'inherit', windowsHide: true });

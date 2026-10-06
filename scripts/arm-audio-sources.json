@@ -1,0 +1,13 @@
+{
+  "pvrecorder": "0cd38cb2f15b238591fd5a970e7faf990036f06d",
+  "miniaudio": "4a5b74bef029b3592c54b6048650ee5f972c1a48",
+  "files": [
+    {"repository":"Picovoice/pvrecorder","path":"LICENSE","output":"LICENSE","sha256":"c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"},
+    {"repository":"Picovoice/pvrecorder","path":"project/include/pv_circular_buffer.h","output":"include/pv_circular_buffer.h","sha256":"3ac7e138d6b8b788ecde4c4aaf3ec236ed9fe95096e5c6dae461839cebd68bfd"},
+    {"repository":"Picovoice/pvrecorder","path":"project/include/pv_recorder.h","output":"include/pv_recorder.h","sha256":"883e0cada94511f11042d8576a7a1f5d871e18adbcc7a909440fbcea703b9960"},
+    {"repository":"Picovoice/pvrecorder","path":"project/src/pv_circular_buffer.c","output":"src/pv_circular_buffer.c","sha256":"55408bfbe7bd2f8b28c8a332a297074a5ac2bfcb9f6075d1d1c9c869a104cdc2"},
+    {"repository":"Picovoice/pvrecorder","path":"project/src/pv_recorder.c","output":"src/pv_recorder.c","sha256":"e3db8667c83eff22916a7181e46922b01989b63f67f186210198f7b811f6ccc7"},
+    {"repository":"mackron/miniaudio","path":"miniaudio.h","output":"include/miniaudio.h","sha256":"6b2029714f8634c4d7c70cc042f45074e0565766113fc064f20cd27c986be9c9"},
+    {"repository":"mackron/miniaudio","path":"LICENSE","output":"MINIAUDIO-LICENSE","sha256":"d9dd1ea2752647ac5570a514c59125ce0cba4cdb9b6f6ee379f59a481603af29"}
+  ]
+}

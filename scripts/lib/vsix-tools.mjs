@@ -4,6 +4,7 @@ import { join, resolve, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 import { root, extensionRoot, targetInfo, runtimeConfig, coreFiles, inspectBinary, safeRelative, filesIn, generatedPath } from './runtime-tools.mjs';
 import { validateAudioManifest, audioId } from './codex-audio-releases.mjs';
+import { armAudioId } from './arm-audio-tools.mjs';
 const require = createRequire(join(extensionRoot, 'package.json'));
 export const Zip = require('adm-zip');
 export const vsce = require('@vscode/vsce');
@@ -25,7 +26,7 @@ export async function verifyVsix(file, target, { verifyDist = false, extractRunt
   if (manifest.version !== expected.version || manifest.displayName !== 'Vcodex-Chamber') throw new Error('Incorrect VSIX version or identity');
   if (runtimeConfig.audio) {
     const audio = validateAudioManifest(JSON.parse(zip.readAsText('extension/codex-audio.json')));
-    if (!manifest.extensionPack?.includes(audioId) || ['id', 'version', 'sha256', 'url', 'engine', 'channel', 'targetPlatform'].some(key => audio[key] !== runtimeConfig.audio[key])) throw new Error('VSIX Codex Audio dependency/provenance mismatch');
+    if (!manifest.extensionPack?.includes(target === 'linux-arm64' ? armAudioId : audioId) || ['id', 'version', 'sha256', 'url', 'engine', 'channel', 'targetPlatform'].some(key => audio[key] !== runtimeConfig.audio[key])) throw new Error('VSIX Codex Audio dependency/provenance mismatch');
     if (zip.getEntries().some(entry => /codex-audio.*\.vsix$/i.test(entry.entryName))) throw new Error('Install Codex Audio through Marketplace, not a nested or modified companion VSIX');
   }
   const xml = zip.readAsText('extension.vsixmanifest');
@@ -34,6 +35,7 @@ export async function verifyVsix(file, target, { verifyDist = false, extractRunt
   const entries = zip.getEntries();
   for (const entry of entries) {
     safeRelative(entry.entryName);
+    if (entry.entryName.startsWith('extension/native/') && !entry.isDirectory) throw new Error('Microphone belongs in the independent Audio ARM VSIX');
     if (((entry.attr >>> 16) & 0o170000) === 0o120000) throw new Error('Links are not permitted in release VSIX');
     if (entry.entryName.startsWith('extension/bin/') && !entry.entryName.startsWith(prefix) && entry.entryName !== 'extension/bin/') throw new Error(`Foreign runtime in ${target}: ${entry.entryName}`);
     if (/(?:^|\/)(?:plan\.md|.*\.log|auth\.json|settings\.json|\.env)$/.test(entry.entryName)) throw new Error('Private file in VSIX');

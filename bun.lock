@@ -96,6 +96,10 @@
         "vite": "^7.1.2",
       },
     },
+    "packages/codex-audio-arm": {
+      "name": "vcodex-audio-arm",
+      "version": "1.0.0",
+    },
     "packages/sdk": {
       "name": "@openchamber/sdk",
       "version": "2.1.0",
@@ -3036,6 +3040,8 @@
     "validate-npm-package-license": ["validate-npm-package-license@3.0.4", "https://registry.npmjs.org/validate-npm-package-license/-/validate-npm-package-license-3.0.4.tgz", { "dependencies": { "spdx-correct": "^3.0.0", "spdx-expression-parse": "^3.0.0" } }, "sha512-DpKm2Ui/xN7/HQKCtpZxoRWBhZ9Z0kqtygG8XCgNQ8ZlDnxuQmWhj566j8fN4Cu3/JmbhsDo7fcAJq4s9h27Ew=="],
 
     "vary": ["vary@1.1.2", "https://registry.npmjs.org/vary/-/vary-1.1.2.tgz", {}, "sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg=="],
+
+    "vcodex-audio-arm": ["vcodex-audio-arm@workspace:packages/codex-audio-arm"],
 
     "version-range": ["version-range@4.15.0", "https://registry.npmjs.org/version-range/-/version-range-4.15.0.tgz", {}, "sha512-Ck0EJbAGxHwprkzFO966t4/5QkRuzh+/I1RxhLgUKKwEn+Cd8NwM60mE3AqBZg5gYODoXW0EFsQvbZjRlvdqbg=="],
 

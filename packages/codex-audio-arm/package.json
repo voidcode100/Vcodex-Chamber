@@ -1,0 +1,43 @@
+{
+  "name": "vcodex-audio-arm",
+  "displayName": "Vcodex Audio ARM",
+  "description": "Local Linux ARM64 microphone adapter for Vcodex-Chamber. Audio capture only; authentication and transcription stay in the client.",
+  "version": "1.0.0",
+  "publisher": "fedaykindev",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "extensionKind": [
+    "ui"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onCommand:_vcodex.audio.available",
+    "onCommand:_vcodex.audio.start",
+    "onCommand:_vcodex.audio.read",
+    "onCommand:_vcodex.audio.stop",
+    "onCommand:_vcodex.audio.cancel"
+  ],
+  "categories": [
+    "Other"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidcode100/Vcodex-Chamber.git"
+  },
+  "contributes": {
+    "configuration": {
+      "title": "Vcodex Audio ARM",
+      "properties": {
+        "vcodexAudio.inputDevice": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Exact microphone device name. Empty selects a microphone and excludes monitor/loopback sources."
+        }
+      }
+    }
+  }
+}

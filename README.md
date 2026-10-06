@@ -19,7 +19,7 @@ Vcodex-Chamber 是基于 [OpenChamber](https://github.com/openchamber/openchambe
 
 1. 从 Release 下载 `Vcodex-Chamber-1.0.0.vsix`，在 VS Code 中使用“扩展：从 VSIX 安装”，然后重新加载窗口。旧开发版更新到首版可使用 `code --install-extension Vcodex-Chamber-1.0.0.vsix --force`。
 2. 已发布的首版通用 VSIX 为 Windows x64。新的平台构建提供 Windows/Linux 的 x64、ARM64 VSIX，每包包含对应架构的官方 Codex CLI 完整运行资源。Linux 直接打包上游 musl 运行包，不生成 deb/rpm 等发行版产物。选择 VS Code 扩展宿主的架构；Remote SSH 时以远端宿主为准。可通过 `captureCodex.codexBinary` 覆盖路径；Codex 未登录时在扩展首页按提示登录。
-3. 语音功能需要安装并启用官方 [Codex Audio](https://marketplace.visualstudio.com/items?itemName=openai.codex-audio) 扩展。默认听写复用 Codex 的 ChatGPT 登录；也支持配置 OpenAI-compatible 转写服务。实现及验证范围见 [DICTATION.md](packages/vscode/DICTATION.md)。
+3. 语音优先使用官方 [Codex Audio](https://marketplace.visualstudio.com/items?itemName=openai.codex-audio) 扩展；本机 Linux ARM64 在官方录音器不可用时，使用独立的 `Vcodex-Audio-ARM-<版本>-linux-arm64.vsix` 插件（需另外安装，与客户端分开分发）。默认听写复用 Codex 的 ChatGPT 登录；也支持配置 OpenAI-compatible 转写服务。实现及验证范围见 [DICTATION.md](packages/vscode/DICTATION.md)。
 4. 将 `Vcodex-Chamber-WindowsSender-1.0.0-win-x64.zip` 解压到固定目录，运行其中的 `WindowsSender.WinUI.exe`。**保留完整解压目录，不能只复制 EXE。** WindowsSender 使用自包含的 .NET / Windows App SDK，不要求用户额外安装 .NET SDK。
 5. 在客户端设置的“WindowsSender 与 Codex 提词器”页面启动接收端，将 VS Code 主机地址、端口、配对令牌和证书指纹填入 WindowsSender 并保存。同机地址用 `127.0.0.1`，默认端口 `43127`；跨机器时两端需要能访问该端口。
 6. 打开可写 Codex 会话，或固定目标会话。截图键加入会话输入框，发送键提交；录音停止后自动转写并提交。会话被占用、归档或忙碌时保留待处理内容并提示原因。
@@ -73,7 +73,7 @@ bun run release # Windows 下检查并构建四个平台 + WindowsSender
 
 `bun run test` 运行接收端/.NET 和转写传输定向测试脚本。浏览器回归使用 Playwright；Windows 默认使用已安装的 Microsoft Edge，其他平台首次执行 `bunx playwright install chromium`。构建后运行 `bun run test:ui`。`bun run dev` 打开 VS Code 扩展开发宿主。
 
-Release 构建脚本会检查版本一致性、类型、接收端/.NET 联调、转写传输和浏览器回归，重新构建 WinUI 和四种 VSIX，生成 ZIP 和 SHA-256。仅构建 VSIX 时同样默认查询 Codex 上游最新稳定 GitHub Release，并从官方 npm 获取该版本四个平台的完整运行包和 SHA-512。同一次构建使用同一份版本清单，校验二进制架构、平台标记、每个运行资源的 SHA-256 和 Linux 执行权限，不依赖开发者已安装的 Codex。下载代理可通过 `CODEX_DOWNLOAD_PROXY` 设置；`--codex-version` 可指定版本，离线复现需显式指定已保存的 `--runtime-manifest` 或 `--codex-version pinned`。构建细节与 GitHub Actions 见 [多平台构建](docs/builds.md)。
+Release 构建脚本会检查版本一致性、类型、接收端/.NET 联调、转写传输和浏览器回归，重新构建 WinUI、四种客户端 VSIX 和独立 Audio ARM VSIX，生成 ZIP 和 SHA-256。仅构建 VSIX 时同样默认查询 Codex 上游最新稳定 GitHub Release，并从官方 npm 获取该版本四个平台的完整运行包和 SHA-512。同一次构建使用同一份版本清单，校验二进制架构、平台标记、每个运行资源的 SHA-256 和 Linux 执行权限，不依赖开发者已安装的 Codex。下载代理可通过 `CODEX_DOWNLOAD_PROXY` 设置；`--codex-version` 可指定版本，离线复现需显式指定已保存的 `--runtime-manifest` 或 `--codex-version pinned`。构建细节与 GitHub Actions 见 [多平台构建](docs/builds.md)。
 
 GitHub Actions 只在版本标签或手动运行时构建。各平台并行，每个平台内部先构建，再检查，全部成功后汇总并自动上传 Release：手动运行默认发布 `v<源码版本>-build.<运行编号>.<尝试编号>` 预发布版，可勾选 `draft` 生成草稿；版本标签推送发布正式版。不会覆盖已有 Release，无需手动上传产物。最先解析一次上游最新稳定 Codex 和官方 Codex Audio，所有平台、校验、汇总任务复用同一份清单；产物附带 `codex-runtime.json`，记录实际版本及官方包哈希。原生 Windows/Linux x64、ARM64 runner 验证 Codex app-server 握手，不构建或检查 deb/rpm 发行版容器。WindowsSender 单独使用 Windows x64 runner。
 

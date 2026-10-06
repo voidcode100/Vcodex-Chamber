@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { root, extensionRoot, targets, nativeTarget, targetInfo, prepareRuntime, stageRuntime, run, hashFile, selectBuildRuntime } from './lib/runtime-tools.mjs';
 import { vsce, Zip, vsixName, setExecutableAttributes, verifyVsix } from './lib/vsix-tools.mjs';
 import { selectBuildAudio } from './lib/codex-audio-tools.mjs';
+import { armAudioId } from './lib/arm-audio-tools.mjs';
 
 const { values } = parseArgs({ options: {
   target: { type: 'string', default: nativeTarget },
@@ -36,14 +37,20 @@ for (const target of selected) {
   const staged = await stageRuntime(target, prepared.get(target));
   const ignoreFile = join(root, 'artifacts/build', `vsix-${target}.ignore`);
   await mkdir(join(root, 'artifacts/build'), { recursive: true });
-  await writeFile(ignoreFile, `${ignore}\nbin/**\n!bin/${info.folder}/**\n`);
+  await writeFile(ignoreFile, `${ignore}\nbin/**\n!bin/${info.folder}/**\nnative/**\n`);
   const packagePath = join(release, vsixName(version, target));
+  const manifestPath = join(extensionRoot, 'package.json');
+  const originalManifest = await readFile(manifestPath, 'utf8');
+  const targetManifest = JSON.parse(originalManifest);
+  targetManifest.extensionPack = [target === 'linux-arm64' ? armAudioId : 'openai.codex-audio'];
   const previous = { target: process.env.VCODEX_VSIX_TARGET, prebuilt: process.env.VCODEX_PACKAGE_PREBUILT };
   try {
+    await writeFile(manifestPath, JSON.stringify(targetManifest, null, 2) + '\n');
     process.env.VCODEX_VSIX_TARGET = target;
     process.env.VCODEX_PACKAGE_PREBUILT = '1';
     await vsce.createVSIX({ cwd: extensionRoot, packagePath, target, ignoreFile, dependencies: false });
   } finally {
+    await writeFile(manifestPath, originalManifest);
     if (previous.target === undefined) delete process.env.VCODEX_VSIX_TARGET; else process.env.VCODEX_VSIX_TARGET = previous.target;
     if (previous.prebuilt === undefined) delete process.env.VCODEX_PACKAGE_PREBUILT; else process.env.VCODEX_PACKAGE_PREBUILT = previous.prebuilt;
   }

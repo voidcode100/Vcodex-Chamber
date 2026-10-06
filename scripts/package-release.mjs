@@ -2,6 +2,8 @@ import { parseArgs } from 'node:util';
 import { readFile, writeFile, access } from 'node:fs/promises';
 import { join } from 'node:path';
 import { root, extensionRoot, targets, hashFile, loadRuntimeManifest, runtimeConfig } from './lib/runtime-tools.mjs';
+import { armAudioVsixName } from './lib/arm-audio-tools.mjs';
+import { verifyArmAudioVsix } from './lib/arm-audio-vsix.mjs';
 import { Zip, vsixName, verifyVsix } from './lib/vsix-tools.mjs';
 const { values, positionals } = parseArgs({ allowPositionals: true, options: {
   'sender-only': { type: 'boolean' }, 'collect-only': { type: 'boolean' },
@@ -32,11 +34,14 @@ if (!values['sender-only']) {
     await verifyVsix(file, target);
     checksums.push(`${await hashFile(file)}  ${name}`);
   }
+  const audioName = armAudioVsixName(version);
+  await verifyArmAudioVsix(join(directory, audioName));
+  checksums.push(`${await hashFile(join(directory, audioName))}  ${audioName}`);
   const sender = new Zip(join(directory, senderZipName));
   if (!sender.getEntry(`Vcodex-Chamber-WindowsSender-${version}/WindowsSender.WinUI.exe`)) throw new Error('WindowsSender ZIP is incomplete');
   checksums.push(`${await hashFile(join(directory, senderZipName))}  ${senderZipName}`);
   await writeFile(join(directory, 'codex-runtime.json'), JSON.stringify(runtimeConfig, null, 2) + '\n');
   checksums.push(`${await hashFile(join(directory, 'codex-runtime.json'))}  codex-runtime.json`);
   await writeFile(join(directory, 'SHA256SUMS.txt'), checksums.join('\n') + '\n');
-  console.log(`Verified four platform VSIX files and WindowsSender ZIP; SHA256SUMS.txt: ${directory}`);
+  console.log(`Verified four platform VSIX files, independent ARM Audio and WindowsSender ZIP; SHA256SUMS.txt: ${directory}`);
 }

@@ -65,6 +65,37 @@ test('a rejected turn retains the transcript for retry without uploading audio a
   } finally { await h.cleanup(); }
 });
 
+test('a new hold discards failed short dictation and starts one fresh recording', async () => {
+  const h = await fixture();
+  try {
+    h.options.transcribe = async () => { throw new Error('未识别到语音'); };
+    await h.manager.startVoice();
+    await assert.rejects(h.manager.stopVoice(true), /未识别到语音/);
+    assert.equal(h.manager.getVoiceState().state, 'error');
+    h.options.transcribe = async () => '新一段中文';
+    assert.deepEqual(await Promise.all([h.manager.startVoice(), h.manager.startVoice()]), ['session-a', 'session-a']);
+    assert.equal(h.manager.getVoiceState().state, 'recording');
+    assert.equal(await h.manager.stopVoice(true), '新一段中文');
+    assert.equal(h.turns.length, 1);
+    assert.equal(h.turns[0].input[0].text, '会话提示\n\n新一段中文');
+  } finally { await h.cleanup(); }
+});
+
+test('release during failed-dictation reset waits for the fresh microphone start', async () => {
+  const h = await fixture();
+  try {
+    h.options.transcribe = async () => '';
+    await h.manager.startVoice();
+    await assert.rejects(h.manager.stopVoice(true), /未识别到语音/);
+    h.options.transcribe = async () => '快速释放';
+    const start = h.manager.startVoice();
+    const stop = h.manager.stopVoice(true);
+    assert.equal(await start, 'session-a');
+    assert.equal(await stop, '快速释放');
+    assert.equal(h.turns.length, 1);
+  } finally { await h.cleanup(); }
+});
+
 test('manual insertion consumes retained text and permits another recording', async () => {
   const h = await fixture();
   try {

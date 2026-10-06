@@ -347,6 +347,13 @@
           "default": "",
           "description": "Optional OpenAI-compatible audio/transcriptions URL. Leave empty to use Codex ChatGPT dictation or the signed-in OpenAI API account."
         },
+        "captureCodex.voice.inputDevice": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Compatibility setting for Vcodex Audio ARM. Prefer vcodexAudio.inputDevice in the independent plugin settings.",
+          "deprecationMessage": "Use vcodexAudio.inputDevice in Vcodex Audio ARM."
+        },
         "captureCodex.voice.language": {
           "type": "string",
           "default": "",

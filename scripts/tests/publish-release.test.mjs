@@ -14,7 +14,7 @@ test('manual releases bind a unique prerelease tag to the exact built commit', (
   assert.equal(plan.args[plan.args.indexOf('--target') + 1], base.GITHUB_SHA);
   assert.ok(plan.args.includes('--prerelease'));
   assert.ok(!plan.args.includes('--draft'));
-  assert.equal(plan.assets.length, 7);
+  assert.equal(plan.assets.length, 8);
   assert.notEqual(releasePlan({ ...base, GITHUB_RUN_ATTEMPT: '2' }).tag, plan.tag);
   assert.notEqual(releasePlan({ ...base, GITHUB_RUN_ID: '1235' }).tag, plan.tag);
   assert.ok(releasePlan({ ...base, RELEASE_DRAFT: 'true' }).args.includes('--draft'));

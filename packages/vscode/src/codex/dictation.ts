@@ -31,7 +31,7 @@ export class Dictation {
     try {
       await this.options.prepare?.();
       session.abort.signal.throwIfAborted();
-      const available = await this.options.command<number | null>('_codex.microphone.available').catch(() => null);
+      const available = await this.options.command<number | null>('_codex.microphone.available');
       session.abort.signal.throwIfAborted();
       if (!available) throw new Error('请在本机 VS Code 安装并启用官方 Codex Audio 扩展以使用麦克风。');
       const result = await this.options.command<{ status: string; sampleRate?: number; reason?: string }>('_codex.microphone.start', session.id);

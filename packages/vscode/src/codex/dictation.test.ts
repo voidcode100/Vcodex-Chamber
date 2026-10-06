@@ -199,14 +199,14 @@ test('401 refresh must not upload the recording into a different account', async
   assert.equal(requests, 1);
 });
 
-test('unavailable Codex Audio reports setup instructions and cleans the recording state', async () => {
+test('microphone availability preserves platform/setup errors and cleans the recording state', async () => {
   const states: DictationState[] = [];
   const dictation = new Dictation({
-    command: async () => { throw new Error('command not found'); },
+    command: async () => { throw new Error('Linux ARM64 录音程序缺失或不可执行'); },
     state: state => states.push(state),
     transcribe: async () => { throw new Error('must not transcribe'); },
   });
-  await assert.rejects(dictation.start(), /Codex Audio/);
+  await assert.rejects(dictation.start(), /Linux ARM64/);
   assert.equal(dictation.active, false);
   assert.deepEqual(states, ['error']);
 });

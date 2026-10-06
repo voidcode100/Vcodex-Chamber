@@ -93,6 +93,9 @@ jobs:
           name: codex-runtime-manifest
           path: artifacts/build
       - run: bun install --frozen-lockfile
+      - name: Build independent Linux ARM64 Audio VSIX from pinned sources
+        if: matrix.target == 'linux-arm64'
+        run: node scripts/build-arm-audio-vsix.mjs
       - name: Build platform VSIX
         run: node scripts/build-vsix.mjs --target ${{ matrix.target }}
       - name: Check extension and shared UI types after build
@@ -121,7 +124,16 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: vsix-${{ matrix.target }}
-          path: artifacts/v${{ needs.version.outputs.version }}/*-${{ matrix.target }}.vsix*
+          path: artifacts/v${{ needs.version.outputs.version }}/Vcodex-Chamber-${{ needs.version.outputs.version }}-${{ matrix.target }}.vsix*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v4
+        if: matrix.target == 'linux-arm64'
+        with:
+          name: audio-linux-arm64
+          path: artifacts/v${{ needs.version.outputs.version }}/Vcodex-Audio-ARM-${{ needs.version.outputs.version }}-linux-arm64.vsix*
           if-no-files-found: error
           compression-level: 0
           retention-days: 14
@@ -180,6 +192,10 @@ jobs:
         with:
           pattern: vsix-*
           merge-multiple: true
+          path: artifacts/v${{ needs.version.outputs.version }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: audio-linux-arm64
           path: artifacts/v${{ needs.version.outputs.version }}
       - uses: actions/download-artifact@v4
         with:

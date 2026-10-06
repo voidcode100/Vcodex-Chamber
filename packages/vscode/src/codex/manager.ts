@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import type { OpenCodeManager, ConnectionStatus } from '../opencode';
 import { Dictation, transcribeRecording, authIdentity } from './dictation';
 import { createDictationFetch } from './dictationTransport';
+import { MicrophoneRouter } from './microphoneRouter';
 import type { GetAuthStatusResponse } from './generated/GetAuthStatusResponse';
 import { CodexAuth, canUseCodex, type CodexAuthState } from './auth';
 export type { CodexAuthState } from './auth';
@@ -54,6 +55,7 @@ export class CodexManager implements OpenCodeManager, vscode.Disposable {
   private readonly sessionPrompts = new Map<string, SessionCapturePrompt>();
   private readonly dictation: Dictation;
   private voiceDelivery?: Promise<string>;
+  private voiceStarting?: Promise<string>;
   private voiceState: { state: 'recording' | 'uploading' | 'idle' | 'error'; error?: string; sessionId?: string } = { state: 'idle' };
   getVoiceState() { return { ...this.voiceState, canRetry: !this.voiceSubmissionUncertain && this.voiceState.state === 'error' && (this.dictation.active || Boolean(this.voiceTranscript)) }; }
 
@@ -80,6 +82,15 @@ export class CodexManager implements OpenCodeManager, vscode.Disposable {
     });
     this.auth = new CodexAuth((method, params) => this.backend.request(method, params), state => this.authListeners.forEach(listener => listener(state)));
     this.backend.onEvent(event => this.auth.onEvent(event.method, event.params));
+    const microphone = new MicrophoneRouter({
+      official: <T>(name: string, ...args: unknown[]) => Promise.resolve(vscode.commands.executeCommand<T>(name, ...args)),
+      arm: { command: async <T>(name: string, ...args: unknown[]): Promise<T> => {
+        const extension = vscode.extensions.getExtension('fedaykindev.vcodex-audio-arm');
+        if (!extension) throw new Error('请安装并启用独立的 Vcodex Audio ARM 插件（linux-arm64 VSIX）。');
+        await extension.activate();
+        return await vscode.commands.executeCommand<T>(name.replace('_codex.microphone.', '_vcodex.audio.'), ...args) as T;
+      } }, platform: process.platform, arch: process.arch, remote: Boolean(vscode.env.remoteName),
+    });
     this.dictation = new Dictation({
       prepare: async () => {
         this.voiceAuthIdentity = undefined;
@@ -90,7 +101,7 @@ export class CodexManager implements OpenCodeManager, vscode.Disposable {
           this.voiceAuthIdentity = `${auth.authMethod}:${authIdentity(auth.authToken)}`;
         }
       },
-      command: <T>(name: string, ...args: unknown[]) => Promise.resolve(vscode.commands.executeCommand<T>(name, ...args)),
+      command: <T>(name: string, ...args: unknown[]) => microphone.command<T>(name, ...args),
       state: (state, error) => this.setVoiceState(state, error),
       transcribe: (pcm, sampleRate, signal) => {
         const config = vscode.workspace.getConfiguration('captureCodex');
@@ -275,10 +286,21 @@ export class CodexManager implements OpenCodeManager, vscode.Disposable {
     await this.facade.submitExternalInput(threadId, input, requestId || `capture-${Date.now()}`);
   }
 
-  async startVoice(sessionId?: string): Promise<string> {
+  startVoice(sessionId?: string): Promise<string> {
+    if (this.voiceStarting) return this.voiceStarting.then(target => {
+      if (sessionId && sessionId !== target) throw new Error('另一会话正在录音，请先停止或取消。');
+      return target;
+    });
+    this.voiceStarting = this.beginVoice(sessionId).finally(() => { this.voiceStarting = undefined; });
+    return this.voiceStarting;
+  }
+  private async beginVoice(sessionId?: string): Promise<string> {
     this.requireAuthentication();
     if (!this.backend.isRunning) throw new Error('Codex app-server is not connected');
     if (this.voiceDelivery) throw new Error('上一段录音正在转写或发送，请稍候。');
+    // A new hold starts a fresh recording after a failed transcription. Keep
+    // unsent or uncertain turns explicit so this never duplicates a submission.
+    if (this.voiceState.state === 'error' && !this.voiceTranscript && !this.voiceSubmissionUncertain) await this.cancelVoice();
     const target = sessionId?.trim() || this.resolveCaptureThreadId();
     if (!target) throw new Error('请先打开一个 Codex 会话再开始录音。');
     if (this.voiceThreadId && this.voiceThreadId !== target) throw new Error('另一会话正在录音，请先停止或取消。');
@@ -292,6 +314,7 @@ export class CodexManager implements OpenCodeManager, vscode.Disposable {
   }
 
   stopVoice(send = true, expectedSessionId?: string): Promise<string> {
+    if (this.voiceStarting) return this.voiceStarting.then(() => this.stopVoice(send, expectedSessionId));
     if (expectedSessionId && this.voiceThreadId && expectedSessionId !== this.voiceThreadId) return Promise.reject(new Error('录音属于另一会话，请返回原会话操作。'));
     if (this.voiceDelivery) return this.voiceDelivery;
     this.voiceDelivery = this.finishVoice(send).finally(() => { this.voiceDelivery = undefined; });
