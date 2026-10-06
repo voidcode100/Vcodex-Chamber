@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup>
+    <!-- Keep all .NET outputs outside the source projects. -->
+    <BaseOutputPath>$(MSBuildThisFileDirectory)artifacts\build\bin\$(MSBuildProjectName)\</BaseOutputPath>
+    <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)artifacts\build\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+  </PropertyGroup>
+</Project>

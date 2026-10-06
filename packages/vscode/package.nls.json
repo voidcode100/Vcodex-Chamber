@@ -1,0 +1,21 @@
+{
+  "extension.description": "Codex coding chat, Windows capture controls and a teleprompter",
+  "views.chat.name": "Chat",
+  "command.openSidebar.title": "Open Sidebar",
+  "command.focusChat.title": "Focus Chat",
+  "command.restartApi.title": "Restart API Connection",
+  "command.showOpenCodeStatus.title": "Show Codex Status",
+  "command.openAgentManager.title": "Run on Several Models",
+  "command.openActiveSessionInEditor.title": "Open Active Session in Editor",
+  "command.openNewSessionInEditor.title": "Open New Session in Editor",
+  "command.openCurrentOrNewSessionInEditor.title": "Open Session in Editor",
+  "command.addToContext.title": "Add to Context",
+  "command.addLineComment.title": "Add Comment",
+  "command.submitLineComment.title": "Comment",
+  "command.removeLineComment.title": "Remove Comment",
+  "command.explain.title": "Explain",
+  "command.improveCode.title": "Improve Code",
+  "command.newSession.title": "New Session",
+  "command.showSettings.title": "Settings",
+  "command.attachExplorerToChat.title": "Attach to Vcodex-Chamber Chat"
+}

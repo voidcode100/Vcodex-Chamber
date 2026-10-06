@@ -1,0 +1,16 @@
+node_modules/
+dist/
+dist-test/
+.vscode-test/
+**/bin/
+**/obj/
+artifacts/
+WindowsSender.WinUI/artifacts/
+/WindowsSender/
+/WindowsSender.Tests/
+packages/vscode/bin/
+*.vsix
+.codex-capture/
+.tmp/
+plan.md
+*.log

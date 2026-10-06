@@ -1,0 +1,56 @@
+<Window x:Class="CaptureCodexSender.WinUI.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Vcodex-Chamber · WindowsSender">
+  <Grid x:Name="Root" Padding="24" RowSpacing="16" IsTabStop="True">
+    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+    <StackPanel Spacing="4"><TextBlock Text="WindowsSender" Style="{StaticResource TitleTextBlockStyle}"/><TextBlock Text="截图加入会话框，发送键提交全部截图；录音在客户端采集，停止后转写并自动发送。" TextWrapping="Wrap" Opacity="0.7"/></StackPanel>
+    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Spacing="16" MaxWidth="700">
+        <InfoBar x:Name="StatusBar" IsOpen="True" IsClosable="False" Severity="Informational" Title="准备连接" Message="填写 OpenChamber 接收端信息后保存。"/>
+        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
+          <StackPanel Spacing="12"><TextBlock Text="连接与配对" Style="{StaticResource SubtitleTextBlockStyle}"/>
+            <TextBox x:Name="HostBox" Header="运行 VS Code 的主机 IP / 域名" PlaceholderText="同机使用 127.0.0.1；跨机器填写 VS Code 主机的局域网 IP"/>
+            <NumberBox x:Name="PortBox" Header="HTTPS 接收端口" Value="43127" Minimum="1024" Maximum="65535" SpinButtonPlacementMode="Compact"/>
+            <PasswordBox x:Name="TokenBox" Header="配对令牌"/>
+            <TextBox x:Name="CertificateBox" Header="证书 SHA-256 指纹" PlaceholderText="可直接粘贴带冒号的完整指纹"/>
+            <Button Content="测试已保存的连接" Click="TestConnectionClick"/>
+          </StackPanel>
+        </Border>
+        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
+          <StackPanel Spacing="12"><TextBlock Text="会话与队列" Style="{StaticResource SubtitleTextBlockStyle}"/>
+            <TextBox x:Name="SessionBox" Header="固定目标会话 ID（可选）" PlaceholderText="留空跟随 OpenChamber 当前会话或客户端固定目标"/>
+            <TextBlock Text="截图接收后绑定该会话；切换页面不会把已有图片发到另一个会话。会话 Prompt 在 OpenChamber 新建会话时设置。" TextWrapping="Wrap" Opacity="0.7"/>
+            <TextBlock x:Name="QueueText" Text="本地队列：0 张"/>
+            <ListView x:Name="CaptureQueueList" SelectionMode="None" MaxHeight="240">
+              <ListView.ItemTemplate><DataTemplate><Grid ColumnSpacing="12" Padding="4"><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Image Source="{Binding Image}" Height="58" Stretch="Uniform"/><TextBlock Grid.Column="1" Text="{Binding Monitor}" VerticalAlignment="Center"/><Button Grid.Column="2" Content="&#x2715;" Tag="{Binding Id}" Click="RemoveCaptureClick" AutomationProperties.Name="移除截图"/></Grid></DataTemplate></ListView.ItemTemplate>
+            </ListView>
+            <Button Content="截图并加入会话框" Click="CaptureClick"/>
+            <Button Content="发送当前截图队列" Click="SendClick" Style="{StaticResource AccentButtonStyle}"/>
+            <Button Content="移除所有截图" Click="RemoveAllClick"/>
+          </StackPanel>
+        </Border>
+        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
+          <StackPanel Spacing="12"><TextBlock Text="组合热键" Style="{StaticResource SubtitleTextBlockStyle}"/>
+            <TextBlock Text="点击对应按钮，然后按键盘组合或鼠标按钮，支持中键和两个侧键。Esc 取消；录制期间暂停其他热键。" TextWrapping="Wrap" Opacity="0.7"/>
+            <Button x:Name="CaptureHotkeyButton" Click="CaptureHotkeyClick"/>
+            <Button x:Name="SendHotkeyButton" Click="SendHotkeyClick"/>
+            <Button x:Name="VoiceHotkeyButton" Click="VoiceHotkeyClick"/>
+            <Button x:Name="VoiceStopHotkeyButton" Click="VoiceStopHotkeyClick"/>
+            <Button x:Name="RemoveHotkeyButton" Click="RemoveHotkeyClick"/>
+            <ToggleSwitch x:Name="HoldToTalkSwitch" Header="按住说话" OnContent="按住专用热键录音，松开停止并发送" OffContent="使用独立开始 / 停止键" Toggled="HoldToTalkToggled"/>
+            <Button x:Name="VoiceHoldHotkeyButton" Click="VoiceHoldHotkeyClick" Visibility="Collapsed"/>
+            <TextBlock x:Name="VoiceHoldInputText" Visibility="Collapsed" TextWrapping="Wrap" Opacity="0.7"/>
+          </StackPanel>
+        </Border>
+        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8" Padding="16"><StackPanel Spacing="12"><TextBlock Text="后台运行" Style="{StaticResource SubtitleTextBlockStyle}"/><ToggleSwitch x:Name="BackgroundSwitch" Header="启动时在后台运行" OnContent="启动后显示托盘，隐藏设置页" OffContent="启动后打开设置页"/><TextBlock Text="关闭窗口只隐藏设置，热键继续工作。托盘双击可重新打开，右键可退出。命令行 --background 启动托盘后台，--headless 无窗口无托盘，--show 打开设置，--exit 完全退出。" TextWrapping="Wrap" Opacity="0.7"/></StackPanel></Border>
+        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
+          <StackPanel Spacing="12"><TextBlock Text="录音与听写" Style="{StaticResource SubtitleTextBlockStyle}"/>
+            <TextBlock Text="麦克风位于运行 VS Code 的客户端。使用现有 Codex ChatGPT 登录与官方 Codex Audio 扩展。停止键会等待转写和发送确认；失败时再次按停止键重试原录音。" TextWrapping="Wrap" Opacity="0.7"/>
+            <Button Content="开始客户端录音" Click="VoiceStartClick"/>
+            <Button Content="停止、转写并发送" Click="VoiceStopClick"/>
+            <Button Content="丢弃录音" Click="VoiceCancelClick"/>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12"><Button Content="完全退出" Click="ExitClick"/><Button Content="后台运行" Click="BackgroundClick"/><Button Content="保存并应用" Click="SaveClick" Style="{StaticResource AccentButtonStyle}"/></StackPanel>
+  </Grid>
+</Window>

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Codex 提词器</title>
+</head>
+<body>
+  <header class="prompter-toolbar">
+    <strong>Codex 提词器</strong>
+    <label title="Ctrl＋滚轮调整字号">字号 <input id="size" aria-label="字号" type="number" min="12" max="72" value="28"></label>
+    <label>行距 <input id="line" aria-label="行距" type="number" min="1" max="2.5" step=".05" value="1.45"></label>
+    <label>速度 <input id="speed" aria-label="速度" type="number" min="1" max="200" value="35"> px/s</label>
+    <button id="toggle" aria-pressed="true">暂停滚动</button>
+    <button id="clear">清空</button>
+    <span id="status" role="status">正在加载提词器…</span>
+  </header>
+  <main id="stage" tabindex="0" aria-label="提词器内容">
+    <article id="text" class="markdown-content"><p>等待 Codex 输出…</p></article>
+  </main>
+  <script type="module" src="./teleprompter.ts"></script>
+</body>
+</html>

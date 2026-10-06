@@ -1,0 +1,8 @@
+{
+  "OpenChamber": "Capture Codex",
+  "OpenChamber: Failed to open sidebar - {0}": "打开侧栏失败：{0}",
+  "OpenChamber: Chat sidebar is not ready": "聊天侧栏尚未就绪",
+  "OpenChamber: No active session": "没有活动会话",
+  "OpenChamber CLI not found. Install it and ensure it's in PATH.": "未找到 Codex CLI，请安装并确保它位于 PATH 中。",
+  "OpenChamber CLI not found. Please install it and ensure it's in PATH.": "未找到 Codex CLI，请安装并确保它位于 PATH 中。"
+}
