@@ -75,7 +75,7 @@ bun run release # Windows 下检查并构建四个平台 + WindowsSender
 
 Release 构建脚本会检查版本一致性、类型、接收端/.NET 联调、转写传输和浏览器回归，重新构建 WinUI 和四种 VSIX，生成 ZIP 和 SHA-256。仅构建 VSIX 时同样默认查询 Codex 上游最新稳定 GitHub Release，并从官方 npm 获取该版本四个平台的完整运行包和 SHA-512。同一次构建使用同一份版本清单，校验二进制架构、平台标记、每个运行资源的 SHA-256 和 Linux 执行权限，不依赖开发者已安装的 Codex。下载代理可通过 `CODEX_DOWNLOAD_PROXY` 设置；`--codex-version` 可指定版本，离线复现需显式指定已保存的 `--runtime-manifest` 或 `--codex-version pinned`。构建细节与 GitHub Actions 见 [多平台构建](docs/builds.md)。
 
-GitHub Actions 只在版本标签或手动运行时构建；版本标签触发全套检查后创建 Release 草稿。最先解析一次上游最新稳定 Codex 和官方 Codex Audio，所有平台、校验、汇总任务复用同一份清单；产物附带 `codex-runtime.json`，记录实际版本及官方包哈希。原生 Windows/Linux x64、ARM64 runner 验证 Codex app-server 握手，不构建或检查 deb/rpm 发行版容器。WindowsSender 单独使用 Windows x64 runner。
+GitHub Actions 只在版本标签或手动运行时构建。各平台并行，每个平台内部先构建，再检查，全部成功后汇总并自动上传 Release：手动运行默认发布 `v<源码版本>-build.<运行编号>.<尝试编号>` 预发布版，可勾选 `draft` 生成草稿；版本标签推送发布正式版。不会覆盖已有 Release，无需手动上传产物。最先解析一次上游最新稳定 Codex 和官方 Codex Audio，所有平台、校验、汇总任务复用同一份清单；产物附带 `codex-runtime.json`，记录实际版本及官方包哈希。原生 Windows/Linux x64、ARM64 runner 验证 Codex app-server 握手，不构建或检查 deb/rpm 发行版容器。WindowsSender 单独使用 Windows x64 runner。
 
 | 路径 | 用途 |
 | --- | --- |

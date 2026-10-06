@@ -81,13 +81,15 @@ node scripts/verify-codex-runtime.mjs --directory artifacts/test/codex-runtime -
 
 - 版本标签推送或手动 `workflow_dispatch`：检查版本、类型、打包安全/解析器、接收端/转写及浏览器回归。普通 main 推送和 PR 不会自动消耗构建额度。
 - 版本任务解析一次最新稳定 Codex 和 Codex Audio，上传 `codex-runtime-manifest` artifact；所有打包及汇总任务通过环境变量复用它，过程中不会各自查询一个可能不同的 latest。缓存 key 包含实际版本和官方包哈希。
-- 原生矩阵：`windows-2022`（x64）、`windows-11-arm`（ARM64）、`ubuntu-24.04`（x64）、`ubuntu-24.04-arm`（ARM64）。每个任务构建自己的 VSIX，解压该 VSIX 后执行真实 Codex 握手。
+- 原生矩阵：`windows-2022`（x64）、`windows-11-arm`（ARM64）、`ubuntu-24.04`（x64）、`ubuntu-24.04-arm`（ARM64）。四个平台可以并行；每个平台内部串行执行“构建 VSIX → 类型/打包检查 → 解压包内 Codex 并执行握手 → 上传”。Windows/Linux x64 在上传前追加接收端、转写和浏览器回归，直接复用刚构建的 Webview；ARM64 也执行类型、打包和原生握手检查。
 - Linux 只构建和验证上游官方 x64/ARM64 Codex 运行包，不构建发行版安装包，也不执行 Debian/Fedora/Arch 容器矩阵。
-- WindowsSender：单独 Windows x64 runner，发布 WinUI/.NET 自包含 ZIP。
+- WindowsSender：单独 Windows x64 runner，与 VSIX 并行；先构建 WinUI/.NET 自包含 ZIP，再运行集成检查，成功后上传。删除独立的前置 checks job，汇总和发布仍必须等待所有平台检查成功。
 - 全部通过后汇总为 `Vcodex-Chamber-<版本>` Actions artifact，包含四个 VSIX、WindowsSender ZIP、总 SHA256SUMS、Codex 版本清单；中间 artifact 保留 14 天，汇总 artifact 和清单保留 30 天。
-- `v<版本>` 标签推送：标签、根包、扩展和 sender 版本必须一致；全部通过后创建 **Release 草稿**。不会覆盖已有 Release、推送 Git 提交或自动公开草稿。手动运行不创建 Release。
+- 手动 Run workflow：全部构建和检查成功后，自动创建并公开 **预发布 Release**，使用 `v<源码版本>-build.<run_id>.<run_attempt>` 标签并指向本次构建的精确 commit。每次运行/重试都有独立标签，保留已发布的 v1.0.0；勾选 `draft` 可改为草稿。VSIX 和 WindowsSender 的内置版本仍是源码版本。
+- `v<版本>` 标签推送：标签、根包、扩展和 sender 版本必须一致；全部通过后自动创建并公开正式 Release。所有 Release 自动上传四个 VSIX、WindowsSender ZIP、SHA256SUMS 和 Codex/Audio 清单，无需手动上传文件。
+- 发布脚本先核验七个文件和总校验和；已有 Release 不覆盖、不删除、不替换资产，创建冲突明确失败。相同 ref 的运行排队，不中断正在上传的 Release。发布是最后一个 job，任何构建/检查/汇总失败都不会进入发布。
 
-工作流使用只读默认权限，只有标签草稿任务授予 `contents: write`；依赖锁定 Bun/Node 主版本及 bun.lock，缓存只保存官方平台归档和 Audio 原始 VSIX，每次使用仍重新核验 SHA-512/SHA-256。项目不需要额外 GitHub secrets，上游查询和 Release 使用当前任务 GitHub token。ARM 原生托管 runner 的可用性和配额取决于 GitHub 仓库/账号；当前公开仓库使用标准 runner 标签。
+工作流使用只读默认权限，只有最后的 Release 任务授予 `contents: write`；依赖锁定 Bun/Node 主版本及 bun.lock，缓存只保存官方平台归档和 Audio 原始 VSIX，每次使用仍重新核验 SHA-512/SHA-256。项目不需要额外 GitHub secrets，上游查询和 Release 使用当前任务 GitHub token。ARM 原生托管 runner 的可用性和配额取决于 GitHub 仓库/账号；当前公开仓库使用标准 runner 标签。
 
 ## 上游跟随与回退
 
