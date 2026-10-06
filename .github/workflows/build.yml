@@ -1,0 +1,265 @@
+name: Build and verify distributions
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: distributions-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      codex-version: ${{ steps.codex.outputs.codex-version }}
+      codex-cache-key: ${{ steps.codex.outputs.codex-cache-key }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - id: version
+        run: node scripts/release-version.mjs
+      - name: Resolve the latest stable upstream Codex release once
+        id: codex
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/resolve-codex-runtime.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: codex-runtime-manifest
+          path: artifacts/build/codex-runtime.json
+          if-no-files-found: error
+          retention-days: 30
+
+  checks:
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, windows-2022]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+      - uses: actions/setup-dotnet@v4
+        if: runner.os == 'Windows'
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+      - run: bun install --frozen-lockfile
+      - run: bun run type-check
+      - run: bun run test:packaging
+      - run: bun run test
+      - run: bun run build
+      - if: runner.os == 'Linux'
+        run: bunx playwright install --with-deps chromium
+      - run: bun run test:ui
+
+  vsix:
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: win32-x64
+            runner: windows-2022
+          - target: win32-arm64
+            runner: windows-11-arm
+          - target: linux-x64
+            runner: ubuntu-24.04
+          - target: linux-arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    env:
+      VSIX_TARGET: ${{ matrix.target }}
+      RELEASE_VERSION: ${{ needs.version.outputs.version }}
+      VCODEX_CODEX_RUNTIME_MANIFEST: artifacts/build/codex-runtime.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+      - uses: actions/cache@v4
+        with:
+          path: artifacts/codex/${{ needs.version.outputs.codex-version }}/downloads/${{ matrix.target }}.tgz
+          key: codex-${{ matrix.target }}-${{ needs.version.outputs.codex-version }}-${{ needs.version.outputs.codex-cache-key }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: codex-runtime-manifest
+          path: artifacts/build
+      - run: bun install --frozen-lockfile
+      - run: bun run test:packaging
+      - run: node scripts/build-vsix.mjs --target ${{ matrix.target }}
+      - name: Verify and extract exactly the packaged runtime
+        run: node scripts/verify-vsix.mjs --file artifacts/v${{ needs.version.outputs.version }}/Vcodex-Chamber-${{ needs.version.outputs.version }}-${{ matrix.target }}.vsix --target ${{ matrix.target }} --extract-runtime artifacts/test/codex-runtime
+      - name: Native Codex version and app-server handshake
+        run: node scripts/verify-codex-runtime.mjs --directory artifacts/test/codex-runtime --target ${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vsix-${{ matrix.target }}
+          path: artifacts/v${{ needs.version.outputs.version }}/*-${{ matrix.target }}.vsix*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  windowssender:
+    needs: version
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+      - run: bun install --frozen-lockfile
+      - run: node scripts/verify-windowssender.mjs
+      - name: Publish self-contained WindowsSender (Windows only)
+        shell: pwsh
+        run: ./scripts/build-windowssender.ps1 -Version '${{ needs.version.outputs.version }}'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windowssender-win-x64
+          path: artifacts/v${{ needs.version.outputs.version }}/*-win-x64.zip*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  linux-distributions:
+    needs: [version, vsix]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x64
+            runner: ubuntu-24.04
+            image: debian:bookworm-slim
+            distribution: debian
+          - target: linux-x64
+            runner: ubuntu-24.04
+            image: fedora:44
+            distribution: fedora
+          - target: linux-x64
+            runner: ubuntu-24.04
+            image: archlinux:base
+            distribution: arch
+          - target: linux-arm64
+            runner: ubuntu-24.04-arm
+            image: debian:bookworm-slim
+            distribution: debian
+          - target: linux-arm64
+            runner: ubuntu-24.04-arm
+            image: fedora:44
+            distribution: fedora
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    env:
+      VCODEX_CODEX_RUNTIME_MANIFEST: artifacts/build/codex-runtime.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - uses: actions/download-artifact@v4
+        with:
+          name: codex-runtime-manifest
+          path: artifacts/build
+      - uses: actions/download-artifact@v4
+        with:
+          name: vsix-${{ matrix.target }}
+          path: artifacts/v${{ needs.version.outputs.version }}
+      - run: node scripts/verify-vsix.mjs --file artifacts/v${{ needs.version.outputs.version }}/Vcodex-Chamber-${{ needs.version.outputs.version }}-${{ matrix.target }}.vsix --target ${{ matrix.target }} --extract-runtime artifacts/test/codex-runtime
+      - name: Pull clean distribution image
+        run: docker pull '${{ matrix.image }}'
+      - name: Version and app-server handshake inside distribution
+        run: node scripts/verify-codex-runtime.mjs --directory artifacts/test/codex-runtime --target ${{ matrix.target }} --docker '${{ matrix.image }}'
+
+  distributions:
+    needs: [version, checks, vsix, windowssender, linux-distributions]
+    runs-on: ubuntu-24.04
+    env:
+      VCODEX_CODEX_RUNTIME_MANIFEST: artifacts/build/codex-runtime.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - uses: actions/download-artifact@v4
+        with:
+          name: codex-runtime-manifest
+          path: artifacts/build
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: vsix-*
+          merge-multiple: true
+          path: artifacts/v${{ needs.version.outputs.version }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: windowssender-win-x64
+          path: artifacts/v${{ needs.version.outputs.version }}
+      - run: node scripts/package-release.mjs ${{ needs.version.outputs.version }} --collect-only
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Vcodex-Chamber-${{ needs.version.outputs.version }}
+          path: |
+            artifacts/v${{ needs.version.outputs.version }}/*.vsix
+            artifacts/v${{ needs.version.outputs.version }}/*.zip
+            artifacts/v${{ needs.version.outputs.version }}/SHA256SUMS.txt
+            artifacts/v${{ needs.version.outputs.version }}/codex-runtime.json
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+  draft-release:
+    if: startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push'
+    needs: [version, distributions]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Vcodex-Chamber-${{ needs.version.outputs.version }}
+          path: release
+      - name: Create a new draft release without replacing existing releases
+        run: |
+          gh release create "$RELEASE_TAG" release/*.vsix release/*.zip release/SHA256SUMS.txt release/codex-runtime.json --verify-tag --draft --title "Vcodex-Chamber $RELEASE_TAG" --notes "Windows/Linux x64 and ARM64 VSIX packages include the latest stable upstream Codex resolved once for this build. See codex-runtime.json for the exact version and integrity. WindowsSender is Windows x64 only. See README and docs/builds.md for installation and validation scope."

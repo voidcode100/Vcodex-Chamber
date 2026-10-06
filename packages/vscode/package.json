@@ -377,7 +377,7 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "bun run stage:codex && bun run build",
+    "vscode:prepublish": "node ../../scripts/vscode-prepublish.mjs",
     "build": "bun run build:extension && bun run build:webview",
     "build:extension": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --minify --main-fields=module,main",
     "build:webview": "VITE_OPENCODE_URL=/api vite build",
@@ -391,7 +391,7 @@
     "test": "node ../../scripts/run-isolated-tests.mjs src webview",
     "test:dictation-transport": "node ../../scripts/verify-dictation-transport.mjs",
     "test:windowssender": "node ../../scripts/verify-windowssender.mjs",
-    "package": "vsce package --no-dependencies"
+    "package": "node ../../scripts/build-vsix.mjs"
   },
   "devDependencies": {
     "@types/adm-zip": "^0.5.7",

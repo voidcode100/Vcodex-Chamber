@@ -63,13 +63,15 @@ function resolvePathCommand(command: string, env: NodeJS.ProcessEnv): string | n
 }
 
 function readVersion(binaryPath: string): string | null {
-  const metadataPath = path.join(path.dirname(binaryPath), 'codex-package.json');
-  try {
-    const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8')) as { version?: unknown };
-    return typeof metadata.version === 'string' ? metadata.version : null;
-  } catch {
-    return null;
+  // Official packages keep metadata next to bin/, while older development
+  // packages kept it next to the executable. Support both layouts.
+  for (const directory of [path.dirname(binaryPath), path.dirname(path.dirname(binaryPath))]) {
+    try {
+      const metadata = JSON.parse(fs.readFileSync(path.join(directory, 'codex-package.json'), 'utf8')) as { version?: unknown };
+      if (typeof metadata.version === 'string') return metadata.version;
+    } catch { /* Missing metadata is a normal fallback. */ }
   }
+  return null;
 }
 
 async function readBinaryVersion(binaryPath: string): Promise<string | null> {
@@ -120,8 +122,10 @@ export class CodexExecutableResolver {
       if (resolved) return { path: resolved, source: 'configured', version: readVersion(resolved), platform, arch, bundled: false };
     }
 
-    const bundled = path.join(this.context.extensionUri.fsPath, 'bin', `${platform}-${arch}`, name);
-    if (isExecutable(bundled)) return { path: bundled, source: 'bundled', version: readVersion(bundled), platform, arch, bundled: true };
+    const runtimeRoot = path.join(this.context.extensionUri.fsPath, 'bin', `${platform}-${arch}`);
+    for (const bundled of [path.join(runtimeRoot, 'bin', name), path.join(runtimeRoot, name)]) {
+      if (isExecutable(bundled)) return { path: bundled, source: 'bundled', version: readVersion(bundled), platform, arch, bundled: true };
+    }
 
     for (const home of codexHomeCandidates(env)) {
       const resolved = findInCodexHome(home, name);

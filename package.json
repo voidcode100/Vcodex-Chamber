@@ -33,6 +33,8 @@
     "vscode:dev": "node scripts/dev-vscode.mjs",
     "vscode:build": "bun run --cwd packages/vscode build",
     "vscode:package": "bun run --cwd packages/vscode package",
+    "vscode:package:all": "node scripts/build-vsix.mjs --target all",
+    "test:packaging": "node --test scripts/tests/packaging.test.mjs scripts/tests/codex-releases.test.mjs",
     "vscode:type-check": "bun run --cwd packages/vscode type-check"
   },
   "dependencies": {
@@ -133,6 +135,7 @@
     "playwright": "1.62.1",
     "sharp": "^0.35.0",
     "tailwindcss": "^4.0.0",
+    "tar": "7.5.22",
     "tsx": "^4.20.6",
     "tw-animate-css": "^1.3.8",
     "typescript": "~5.9.0",

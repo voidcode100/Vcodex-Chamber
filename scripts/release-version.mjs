@@ -1,0 +1,11 @@
+import { readFile, appendFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+const root = resolve(import.meta.dirname, '..');
+const manifest = JSON.parse(await readFile(resolve(root, 'packages/vscode/package.json'), 'utf8'));
+const workspace = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8'));
+const sender = (await readFile(resolve(root, 'WindowsSender.WinUI/WindowsSender.WinUI.csproj'), 'utf8')).match(/<Version>([^<]+)<\/Version>/)?.[1];
+const version = manifest.version;
+if (!/^\d+\.\d+\.\d+$/.test(version) || workspace.version !== version || sender !== version) throw new Error('Workspace, extension and sender versions must match MAJOR.MINOR.PATCH');
+if (process.env.GITHUB_REF?.startsWith('refs/tags/') && process.env.GITHUB_REF !== `refs/tags/v${version}`) throw new Error('Version tag must match source versions');
+if (process.env.GITHUB_OUTPUT) await appendFile(process.env.GITHUB_OUTPUT, `version=${version}\n`);
+console.log(version);

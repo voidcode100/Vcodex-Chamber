@@ -1,0 +1,11 @@
+import { parseArgs } from 'node:util';
+import { mkdir, writeFile, appendFile } from 'node:fs/promises';
+import { resolve, dirname } from 'node:path';
+import { resolveCodexRuntime, manifestCacheKey } from './lib/codex-releases.mjs';
+const { values } = parseArgs({ options: { version: { type: 'string', default: 'latest' }, out: { type: 'string', default: 'artifacts/build/codex-runtime.json' } } });
+const config = await resolveCodexRuntime(values.version);
+const file = resolve(values.out);
+await mkdir(dirname(file), { recursive: true });
+await writeFile(file, JSON.stringify(config, null, 2) + '\n');
+if (process.env.GITHUB_OUTPUT) await appendFile(process.env.GITHUB_OUTPUT, `codex-version=${config.version}\ncodex-cache-key=${manifestCacheKey(config)}\n`);
+console.log(`Resolved official Codex ${config.version}: ${config.release}; manifest ${file}`);

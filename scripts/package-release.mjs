@@ -1,38 +1,42 @@
-import { createRequire } from 'node:module';
-import { readFile, readdir, writeFile } from 'node:fs/promises';
-import { resolve, join } from 'node:path';
-import { createHash } from 'node:crypto';
-const root = resolve(import.meta.dirname, '..');
-const require = createRequire(join(root, 'packages/vscode/package.json'));
-const Zip = require('adm-zip');
-const version = process.argv[2];
-if (!/^\d+\.\d+\.\d+$/.test(version || '')) throw new Error('Expected MAJOR.MINOR.PATCH');
+import { parseArgs } from 'node:util';
+import { readFile, writeFile, access } from 'node:fs/promises';
+import { join } from 'node:path';
+import { root, extensionRoot, targets, hashFile, loadRuntimeManifest, runtimeConfig } from './lib/runtime-tools.mjs';
+import { Zip, vsixName, verifyVsix } from './lib/vsix-tools.mjs';
+const { values, positionals } = parseArgs({ allowPositionals: true, options: {
+  'sender-only': { type: 'boolean' }, 'collect-only': { type: 'boolean' },
+  'runtime-manifest': { type: 'string' },
+} });
+if (values['runtime-manifest']) await loadRuntimeManifest(values['runtime-manifest']);
+const { version: sourceVersion } = JSON.parse(await readFile(join(extensionRoot, 'package.json'), 'utf8'));
+const version = positionals[0] || sourceVersion;
+if (!/^\d+\.\d+\.\d+$/.test(version) || version !== sourceVersion) throw new Error('Release version must match packages/vscode/package.json');
+if (values['sender-only'] && values['collect-only']) throw new Error('Choose sender-only or collect-only');
 const directory = join(root, 'artifacts', `v${version}`);
-const vsixPath = join(directory, `Vcodex-Chamber-${version}.vsix`);
-const extensionZip = new Zip(vsixPath);
-const manifest = JSON.parse(extensionZip.readAsText('extension/package.json'));
-if (manifest.version !== version || manifest.displayName !== 'Vcodex-Chamber') throw new Error('Incorrect VSIX identity/version');
-let checked = 0;
-async function verifyDist(directory) {
-  for (const entry of await readdir(directory, { withFileTypes: true })) {
-    const file = join(directory, entry.name);
-    if (entry.isDirectory()) await verifyDist(file);
-    else {
-      const key = 'extension/' + file.slice(join(root, 'packages/vscode').length + 1).replaceAll('\\', '/');
-      if (!extensionZip.readFile(key)?.equals(await readFile(file))) throw new Error(`VSIX mismatch: ${key}`);
-      checked++;
-    }
-  }
-}
-await verifyDist(join(root, 'packages/vscode/dist'));
-if (extensionZip.getEntries().some(entry => /(?:^|\/)(?:plan\.md|.*\.log|auth\.json|settings\.json)$/.test(entry.entryName))) throw new Error('Private file in VSIX');
 const senderZipName = `Vcodex-Chamber-WindowsSender-${version}-win-x64.zip`;
-const senderZip = new Zip();
-senderZip.addLocalFolder(join(directory, 'windows-x64'), `Vcodex-Chamber-WindowsSender-${version}`);
-senderZip.writeZip(join(directory, senderZipName));
-const checksums = [];
-for (const name of [`Vcodex-Chamber-${version}.vsix`, senderZipName]) {
-  checksums.push(`${createHash('sha256').update(await readFile(join(directory, name))).digest('hex')}  ${name}`);
+if (!values['collect-only']) {
+  const senderDirectory = join(directory, 'windows-x64');
+  for (const file of ['WindowsSender.WinUI.exe', 'WindowsSender.WinUI.dll', 'LICENSE.txt', 'README.md']) await access(join(senderDirectory, file));
+  const zip = new Zip();
+  zip.addLocalFolder(senderDirectory, `Vcodex-Chamber-WindowsSender-${version}`);
+  if (zip.getEntries().some(entry => /(?:^|\/)(?:.*\.log|auth\.json|settings\.json|plan\.md)$/.test(entry.entryName))) throw new Error('Private file in WindowsSender ZIP');
+  const zipPath = join(directory, senderZipName);
+  zip.writeZip(zipPath);
+  await writeFile(zipPath + '.sha256', `${await hashFile(zipPath)}  ${senderZipName}\n`);
+  console.log(`Created ${senderZipName}`);
 }
-await writeFile(join(directory, 'SHA256SUMS.txt'), checksums.join('\n') + '\n');
-console.log(`Verified ${checked} VSIX dist files; created WindowsSender ZIP and SHA256SUMS.txt`);
+if (!values['sender-only']) {
+  const checksums = [];
+  for (const target of targets) {
+    const name = vsixName(version, target), file = join(directory, name);
+    await verifyVsix(file, target);
+    checksums.push(`${await hashFile(file)}  ${name}`);
+  }
+  const sender = new Zip(join(directory, senderZipName));
+  if (!sender.getEntry(`Vcodex-Chamber-WindowsSender-${version}/WindowsSender.WinUI.exe`)) throw new Error('WindowsSender ZIP is incomplete');
+  checksums.push(`${await hashFile(join(directory, senderZipName))}  ${senderZipName}`);
+  await writeFile(join(directory, 'codex-runtime.json'), JSON.stringify(runtimeConfig, null, 2) + '\n');
+  checksums.push(`${await hashFile(join(directory, 'codex-runtime.json'))}  codex-runtime.json`);
+  await writeFile(join(directory, 'SHA256SUMS.txt'), checksums.join('\n') + '\n');
+  console.log(`Verified four platform VSIX files and WindowsSender ZIP; SHA256SUMS.txt: ${directory}`);
+}

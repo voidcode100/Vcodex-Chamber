@@ -1,0 +1,26 @@
+{
+  "version": "0.160.0",
+  "release": "https://github.com/openai/codex/releases/tag/rust-v0.160.0",
+  "targets": {
+    "win32-x64": {
+      "platform": "windows", "arch": "x86_64", "triple": "x86_64-pc-windows-msvc",
+      "url": "https://registry.npmjs.org/@openai/codex/-/codex-0.160.0-win32-x64.tgz",
+      "integrity": "sha512-/gCFcuOmGlQkgGivWCtY8BNEDixh70Pue0HZOk9S8bj2vUIE1GLD9zcNB/KqqDJmn0S+lIttauLpzQnw6HOCHA=="
+    },
+    "win32-arm64": {
+      "platform": "windows", "arch": "aarch64", "triple": "aarch64-pc-windows-msvc",
+      "url": "https://registry.npmjs.org/@openai/codex/-/codex-0.160.0-win32-arm64.tgz",
+      "integrity": "sha512-tTvK9ZIGuj9WnYaYOAnfjJVSfPV7dKqWtDHqUPLf0Hadp6SgynTxx7S7iMXRieFeXVOI2XH76KxEHSOTOnz3zw=="
+    },
+    "linux-x64": {
+      "platform": "linux", "arch": "x86_64", "triple": "x86_64-unknown-linux-musl",
+      "url": "https://registry.npmjs.org/@openai/codex/-/codex-0.160.0-linux-x64.tgz",
+      "integrity": "sha512-KI/73OqGrHmR18s7ya7E1NqV6rT0y3lxr0s8S1qR2m6zU6QRF/HlR529jALLh5vjdUnsRT4Ahoxt0axb4kY99g=="
+    },
+    "linux-arm64": {
+      "platform": "linux", "arch": "aarch64", "triple": "aarch64-unknown-linux-musl",
+      "url": "https://registry.npmjs.org/@openai/codex/-/codex-0.160.0-linux-arm64.tgz",
+      "integrity": "sha512-VnVdsS06YlDsL8OwaJjQ3xdqdJNG4i+eBJBV3LytddknzSaF/urijLzVg3ptkwvoj8C7Gn7iWpVE+y8WEaPiCg=="
+    }
+  }
+}
