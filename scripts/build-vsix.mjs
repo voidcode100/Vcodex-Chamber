@@ -3,15 +3,18 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { root, extensionRoot, targets, nativeTarget, targetInfo, prepareRuntime, stageRuntime, run, hashFile, selectBuildRuntime } from './lib/runtime-tools.mjs';
 import { vsce, Zip, vsixName, setExecutableAttributes, verifyVsix } from './lib/vsix-tools.mjs';
+import { selectBuildAudio } from './lib/codex-audio-tools.mjs';
 
 const { values } = parseArgs({ options: {
   target: { type: 'string', default: nativeTarget },
   'skip-build': { type: 'boolean', default: false }, offline: { type: 'boolean', default: false },
   'codex-version': { type: 'string' }, 'runtime-manifest': { type: 'string' },
+  'audio-version': { type: 'string' },
 } });
 const selected = values.target === 'all' ? targets : [...new Set(values.target.split(','))];
 selected.forEach(targetInfo);
 const selectedRuntime = await selectBuildRuntime({ version: values['codex-version'], manifest: values['runtime-manifest'], offline: values.offline });
+await selectBuildAudio(selectedRuntime, { version: values['audio-version'], offline: values.offline, pinned: values['codex-version'] === 'pinned' });
 const { version } = JSON.parse(await readFile(join(extensionRoot, 'package.json'), 'utf8'));
 const release = join(root, 'artifacts', `v${version}`);
 await mkdir(release, { recursive: true });

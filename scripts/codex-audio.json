@@ -1,0 +1,10 @@
+{
+  "id": "openai.codex-audio",
+  "version": "26.930.61225",
+  "channel": "release",
+  "targetPlatform": "universal",
+  "engine": "^1.96.2",
+  "url": "https://openai.gallerycdn.vsassets.io/extensions/openai/codex-audio/26.930.61225/1791246767162/Microsoft.VisualStudio.Services.VSIXPackage",
+  "sha256": "1b763fb0a0577037d6fccd8ca987a5fe757fb5784290ec5f6ab47f87cf379a1c",
+  "marketplace": "https://marketplace.visualstudio.com/items?itemName=openai.codex-audio"
+}

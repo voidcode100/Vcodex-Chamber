@@ -13,6 +13,8 @@
 
 ## 当前实现
 
+- 本地和 Actions VSIX 构建会查询官方 Marketplace 最新稳定 Codex Audio，下载原包到忽略的审计缓存，校验官方 SHA-256、UI 宿主及五个命令；本项目 VSIX 仅包含来源清单，继续通过 `extensionPack` 安装和更新官方 Audio。当前审计版本 `26.930.61225` 没有 Linux ARM64 原生录音器；该平台聊天可用，麦克风需兼容的本地 UI 宿主。详见 [构建说明](../../docs/builds.md)。
+
 - 官方 Codex Audio 采集 PCM16 单声道，使用实际采样率生成 WAV。删除 Webview ScriptProcessor fallback、线程 Realtime、猜测的 transcript 事件和 RPC 落盘诊断。
 - 手动麦克风默认可见；勾选按钮转写后插入原输入框，发送按钮转写后复用正常消息发送，取消不上传、不发送。录音状态同步侧栏和编辑区会话页，并提供录音计时。
 - WindowsSender 的 start/stop 控制复用相同录音器。停止后按已绑定会话的 prompt 自动发一个 turn；请求 ID 去重，按接收顺序处理控制，错误回传发送端。并发 stop 复用一次转写和提交。

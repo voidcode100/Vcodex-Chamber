@@ -2,9 +2,11 @@
 
 Codex coding chat with paired Windows screenshots, dictation and a Markdown teleprompter. The UI is based on MIT-licensed [OpenChamber](https://github.com/openchamber/openchamber); model operations use Codex CLI app-server.
 
-Install the VSIX from [Vcodex-Chamber Releases](https://github.com/voidcode100/Vcodex-Chamber/releases) matching your extension host: `win32-x64`, `win32-arm64`, `linux-x64` or `linux-arm64`. Each platform build includes the complete matching official Codex runtime. The Linux musl build supports Debian/Ubuntu, Fedora and Arch; ARM means ARM64, not ARMv7. For Remote SSH, match the remote host. The original v1.0.0 generic VSIX is Windows x64 only. Install the official **Codex Audio** extension for microphone capture, then sign in through the Codex login page.
+Install the VSIX from [Vcodex-Chamber Releases](https://github.com/voidcode100/Vcodex-Chamber/releases) matching your extension host: `win32-x64`, `win32-arm64`, `linux-x64` or `linux-arm64`. Each platform build includes the complete matching official Codex runtime. Linux packages use the upstream musl runtime directly; this project does not publish deb/rpm packages. ARM means ARM64, not ARMv7. For Remote SSH, match the remote host. The original v1.0.0 generic VSIX is Windows x64 only. Install the official **Codex Audio** extension for microphone capture, then sign in through the Codex login page.
 
 Open the **Vcodex-Chamber** sidebar. Its settings include **WindowsSender 与 Codex 提词器** for HTTPS pairing and session routing. Commands are grouped under **Vcodex-Chamber**; **Open Teleprompter** opens the current reply in an editor-area panel.
+
+Builds resolve and audit the latest stable official Codex Audio release; VS Code installs and updates it through Marketplace. Audio captures PCM locally; transcription is handled by the existing dictation transport. The audited Audio 26.930.61225 requires VS Code 1.96.2 or later and has no native Linux ARM64 recorder. Remote Linux ARM64 workspaces can use Audio on a supported local UI host.
 
 WindowsSender stages screenshots in the composer and submits a batch with a separate hotkey. Voice controls use the VS Code client's microphone and automatically submit the transcription after stop. Configure a shared session prompt when creating a chat. Occupied sessions remain readable with the composer hidden.
 

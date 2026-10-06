@@ -9,6 +9,7 @@ WindowsSender.WinUI/artifacts/
 /WindowsSender/
 /WindowsSender.Tests/
 packages/vscode/bin/
+/packages/vscode/codex-audio.json
 *.vsix
 .codex-capture/
 .tmp/

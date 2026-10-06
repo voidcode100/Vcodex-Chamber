@@ -8,19 +8,16 @@ import { targetInfo, validateRuntime, runtimeConfig, nativeTarget, run, loadRunt
 
 const { values } = parseArgs({ options: {
   directory: { type: 'string' }, target: { type: 'string', default: nativeTarget },
-  docker: { type: 'string' }, wsl: { type: 'string' },
+  wsl: { type: 'string' },
   'runtime-manifest': { type: 'string' },
 } });
-if (!values.directory) throw new Error('Use --directory <extracted runtime> [--target <VSIX target>] [--docker <image> | --wsl <distribution>]');
-if (values.docker && values.wsl) throw new Error('Choose one runtime host');
+if (!values.directory) throw new Error('Use --directory <extracted runtime> [--target <VSIX target>] [--wsl <distribution>]');
 if (values['runtime-manifest']) await loadRuntimeManifest(values['runtime-manifest']);
 const directory = resolve(values.directory), info = targetInfo(values.target);
 await validateRuntime(directory, values.target);
-if (!values.docker && !values.wsl && values.target !== nativeTarget) throw new Error(`Cannot execute ${values.target} on ${nativeTarget}; use a native runner`);
+if (!values.wsl && values.target !== nativeTarget) throw new Error(`Cannot execute ${values.target} on ${nativeTarget}; use a native runner`);
 const temporary = await mkdtemp(join(tmpdir(), 'vcodex-runtime-smoke-'));
-const containerName = `vcodex-smoke-${process.pid}-${Date.now()}`;
 function command(args) {
-  if (values.docker) return ['docker', ['run', '--rm', '--name', containerName, '--network', 'none', '--read-only', '--cap-drop', 'ALL', '--tmpfs', '/tmp:rw,exec', '--workdir', '/tmp', '-e', 'CODEX_HOME=/tmp', '--mount', `type=bind,source=${directory},target=/runtime,readonly`, values.docker, '/runtime/bin/codex', ...args]];
   if (values.wsl) {
     if (process.platform !== 'win32' || info.platform !== 'linux' || info.arch !== 'x86_64') throw new Error('WSL smoke is for Linux x64 on Windows x64');
     const linuxPath = directory.replace(/^([A-Z]):/i, (_, drive) => `/mnt/${drive.toLowerCase()}`).replaceAll('\\', '/');
@@ -68,7 +65,6 @@ async function invoke(args, handshake = false) {
   } finally {
     if (child.exitCode === null) {
       child.stdin.end();
-      if (values.docker) await new Promise(done => { const cleanup = spawn('docker', ['rm', '-f', containerName], { stdio: 'ignore' }); cleanup.on('error', done); cleanup.on('exit', done); });
       child.kill();
       await Promise.race([new Promise(done => child.once('exit', done)), new Promise(done => setTimeout(done, 2000))]);
     }
@@ -79,7 +75,7 @@ try {
   const version = await invoke(['--version']);
   assert.equal(version, `codex-cli ${runtimeConfig.version}`);
   const agent = await invoke(['app-server'], true);
-  console.log(`Codex ${values.target}: ${version}; app-server initialize OK (${agent}); host ${values.docker || values.wsl || nativeTarget}`);
+  console.log(`Codex ${values.target}: ${version}; app-server initialize OK (${agent}); host ${values.wsl || nativeTarget}`);
 } finally {
   if (dirname(temporary) !== resolve(tmpdir()) || !basename(temporary).startsWith('vcodex-runtime-smoke-')) throw new Error('Unexpected temporary directory');
   await rm(temporary, { recursive: true, force: true });
