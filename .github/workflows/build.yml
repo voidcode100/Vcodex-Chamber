@@ -93,10 +93,7 @@ jobs:
           name: codex-runtime-manifest
           path: artifacts/build
       - run: bun install --frozen-lockfile
-      - name: Build independent Linux ARM64 Audio VSIX from pinned sources
-        if: matrix.target == 'linux-arm64'
-        run: node scripts/build-arm-audio-vsix.mjs
-      - name: Build platform VSIX
+      - name: Build platform VSIX with independent bundled Audio
         run: node scripts/build-vsix.mjs --target ${{ matrix.target }}
       - name: Check extension and shared UI types after build
         run: bun run type-check

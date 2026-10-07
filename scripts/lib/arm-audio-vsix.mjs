@@ -29,5 +29,5 @@ export async function verifyArmAudioVsix(file, { verifyDist = false } = {}) {
   }
   const js = zip.readFile('extension/dist/extension.js');
   if (!js || (verifyDist && !js.equals(await readFile(join(armExtensionRoot, 'dist/extension.js'))))) throw new Error('Missing or stale ARM Audio extension');
-  console.log(`Verified independent ARM Audio VSIX: ${file}`);
+  console.log(`Verified independent ARM Audio VSIX: ${typeof file === 'string' ? file : 'bundled companion'}`);
 }

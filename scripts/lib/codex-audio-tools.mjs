@@ -1,4 +1,4 @@
-import { readFile, mkdir, rename, writeFile } from 'node:fs/promises';
+import { mkdir, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { root, extensionRoot, hashFile, generatedPath, run, safeRelative } from './runtime-tools.mjs';
 import { Zip } from './vsix-tools.mjs';
@@ -31,8 +31,6 @@ export async function prepareCodexAudio(audio, { offline = false } = {}) {
     await rename(partial, file);
   }
   auditAudioZip(new Zip(file), audio);
-  const extension = JSON.parse(await readFile(join(extensionRoot, 'package.json'), 'utf8'));
-  if (!extension.extensionPack?.includes(audioId)) throw new Error('Declare official Codex Audio in extensionPack so VS Code installs its current Marketplace release');
   console.log(`Audited official Codex Audio ${audio.version}: Marketplace SHA-256, identity, UI host and microphone commands`);
   return file;
 }
@@ -50,10 +48,11 @@ export async function selectBuildAudio(runtime, { version, offline = false, pinn
   else if (runtime.audio) validateAudioManifest(runtime.audio);
   else if (pinned) runtime.audio = await resolveCodexAudio('pinned');
   else runtime.audio = await resolveCodexAudio();
-  await prepareCodexAudio(runtime.audio, { offline });
+  const file = await prepareCodexAudio(runtime.audio, { offline });
   const reference = await generatedPath(join(extensionRoot, 'codex-audio.json'), extensionRoot);
   await writeFile(reference, JSON.stringify(runtime.audio, null, 2) + '\n');
   const snapshot = await generatedPath(join(root, 'artifacts/build/codex-runtime.json'), join(root, 'artifacts'));
   await mkdir(join(root, 'artifacts/build'), { recursive: true });
   await writeFile(snapshot, JSON.stringify(runtime, null, 2) + '\n');
+  return file;
 }

@@ -16,6 +16,7 @@ import { CaptureReceiver } from './captureReceiver';
 import type { VoiceFrame } from './captureReceiver';
 import { TeleprompterPanelProvider } from './TeleprompterPanelProvider';
 import { resolveWorkspaceCapturePath } from './captureProtocol';
+import { AudioCompanionInstaller } from './audioCompanion';
 
 let chatViewProvider: ChatViewProvider | undefined;
 
@@ -65,6 +66,25 @@ const formatDurationMs = (value: number | null | undefined) => {
 export async function activate(context: vscode.ExtensionContext) {
   applyConnectAttemptTimeout();
   outputChannel = vscode.window.createOutputChannel('Vcodex-Chamber');
+  const audioCompanionUri = vscode.Uri.joinPath(context.extensionUri, 'audio-companion');
+  const audioCompanion = new AudioCompanionInstaller({
+    platform: process.platform, arch: process.arch, remote: Boolean(vscode.env.remoteName), vscodeVersion: vscode.version,
+    read: async file => await vscode.workspace.fs.readFile(vscode.Uri.joinPath(audioCompanionUri, file)),
+    installed: id => {
+      const extension = vscode.extensions.getExtension(id);
+      return extension ? { version: extension.packageJSON.version as string } : undefined;
+    },
+    install: async file => { await vscode.commands.executeCommand('workbench.extensions.installExtension', vscode.Uri.joinPath(audioCompanionUri, file), { donotSync: true }); },
+    log: message => outputChannel?.appendLine(`[Audio] ${message}`),
+  });
+  const ensureAudio = () => audioCompanion.ensure();
+  context.subscriptions.push(vscode.commands.registerCommand('captureCodex.installAudio', ensureAudio));
+  void ensureAudio().catch(error => {
+    outputChannel?.appendLine(`[Audio] ${error instanceof Error ? error.message : String(error)}`);
+    void vscode.window.showWarningMessage(`配套麦克风插件安装未完成：${error instanceof Error ? error.message : String(error)}`, '重试安装').then(action => {
+      if (action) void vscode.commands.executeCommand('captureCodex.installAudio');
+    });
+  });
 
   let moveToRightSidebarScheduled = false;
 
@@ -151,7 +171,7 @@ export async function activate(context: vscode.ExtensionContext) {
   // contract is retained only at the UI bridge boundary.
   // Vcodex-Chamber owns the local app-server process. The OpenChamber UI still
   // receives the historical manager contract through the Codex facade.
-  codexManager = new CodexManager(context, outputChannel);
+  codexManager = new CodexManager(context, outputChannel, ensureAudio);
   openCodeManager = codexManager;
   teleprompter = new TeleprompterPanelProvider(context, codexManager);
   context.subscriptions.push(teleprompter);

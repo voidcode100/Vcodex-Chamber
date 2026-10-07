@@ -3,8 +3,8 @@ import { readFile, mkdir, writeFile, chmod } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 import { root, extensionRoot, targetInfo, runtimeConfig, coreFiles, inspectBinary, safeRelative, filesIn, generatedPath } from './runtime-tools.mjs';
-import { validateAudioManifest, audioId } from './codex-audio-releases.mjs';
-import { armAudioId } from './arm-audio-tools.mjs';
+import { validateAudioManifest } from './codex-audio-releases.mjs';
+import { verifyAudioCompanion } from './audio-companion.mjs';
 const require = createRequire(join(extensionRoot, 'package.json'));
 export const Zip = require('adm-zip');
 export const vsce = require('@vscode/vsce');
@@ -26,8 +26,10 @@ export async function verifyVsix(file, target, { verifyDist = false, extractRunt
   if (manifest.version !== expected.version || manifest.displayName !== 'Vcodex-Chamber') throw new Error('Incorrect VSIX version or identity');
   if (runtimeConfig.audio) {
     const audio = validateAudioManifest(JSON.parse(zip.readAsText('extension/codex-audio.json')));
-    if (!manifest.extensionPack?.includes(target === 'linux-arm64' ? armAudioId : audioId) || ['id', 'version', 'sha256', 'url', 'engine', 'channel', 'targetPlatform'].some(key => audio[key] !== runtimeConfig.audio[key])) throw new Error('VSIX Codex Audio dependency/provenance mismatch');
-    if (zip.getEntries().some(entry => /codex-audio.*\.vsix$/i.test(entry.entryName))) throw new Error('Install Codex Audio through Marketplace, not a nested or modified companion VSIX');
+    if (manifest.extensionPack?.length || ['id', 'version', 'sha256', 'url', 'engine', 'channel', 'targetPlatform'].some(key => audio[key] !== runtimeConfig.audio[key])) throw new Error('VSIX Codex Audio installation/provenance mismatch');
+    await verifyAudioCompanion(zip, target, audio);
+    if (target !== 'linux-arm64' && manifest.engines?.vscode !== audio.engine) throw new Error('Client must require its bundled official Audio VS Code version');
+    if (!manifest.activationEvents?.includes('onStartupFinished')) throw new Error('Missing Audio companion startup installation');
   }
   const xml = zip.readAsText('extension.vsixmanifest');
   if (!xml.includes(`TargetPlatform="${target}"`) && !xml.includes(`Id="Microsoft.VisualStudio.Code.TargetPlatform" Value="${target}"`)) throw new Error(`Missing VSIX target ${target}`);

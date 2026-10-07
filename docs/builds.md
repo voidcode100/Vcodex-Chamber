@@ -17,7 +17,7 @@
 
 ARM 是 ARM64/AArch64，当前官方包没有 ARMv7。构建会检查每个 VSIX 内 Codex ELF/PE 的架构、哈希和启动握手；不会把发行版容器兼容性检查作为发布条件。
 
-VSIX 安装到本地或 Remote SSH 的对应扩展宿主，架构以实际运行扩展的机器为准。WindowsSender 仅 Windows x64，和 VS Code 客户端的平台可以不同。x64 等受支持本地主机使用官方 Codex Audio；Linux ARM64 本地主机另安装 Vcodex Audio ARM。客户端不再内置录音器。
+VSIX 安装到本地或 Remote SSH 的对应扩展宿主，架构以实际运行扩展的机器为准。WindowsSender 仅 Windows x64，和 VS Code 客户端的平台可以不同。主 VSIX 配套携带独立 Audio VSIX：Windows/Linux x64 及 Windows ARM64 使用官方 Codex Audio，Linux ARM64 使用 Vcodex Audio ARM。本地安装主 VSIX 后，插件在首次启动时调用 VS Code 的 `workbench.extensions.installExtension` 从配套 VSIX 安装 Audio，扩展列表显示两个独立插件。它不是把 Audio 代码加载到主扩展，也不需要单独从 Release 下载 Audio。
 
 ## 本地构建
 
@@ -45,13 +45,15 @@ node scripts/build-vsix.mjs --target linux-x64 --codex-version pinned --offline
 
 `--codex-version` 接受 `latest`（默认）、稳定版本号、`pinned`。`--runtime-manifest` 与显式版本号互斥，也可用环境变量 `VCODEX_CODEX_RUNTIME_MANIFEST` 共享同一份清单。`--offline` 必须配合包含 Audio 记录的显式清单或 `pinned`，只接受已存在且 SHA 匹配的缓存；不能离线声称查询到了最新版本。`pinned` 使用源码中的已验证清单，作为用户主动选择的回退入口。
 
-Codex Audio 同样默认从官方 Marketplace 查询最新稳定版；`--audio-version` 可选择 `latest`、确切版本或 `pinned`。构建下载原始 VSIX 到忽略的 `artifacts/codex-audio/<版本>/universal.vsix`，核验 Marketplace SHA-256、发布者、UI 宿主及五个麦克风命令。仅将来源清单 `codex-audio.json` 纳入本项目 VSIX，不嵌入、修改或重新分发 Audio；非 Linux ARM64 包的 `extensionPack` 让 VS Code 从 Marketplace 安装并更新官方扩展；Linux ARM64 包关联独立的 `fedaykindev.vcodex-audio-arm`。适配插件目前通过 Release VSIX 分发，未发布 Marketplace 时必须手动安装对应 VSIX。离线构建复用快照中的 Audio 版本和已校验缓存。
+Codex Audio 同样默认从官方 Marketplace 查询最新稳定版；`--audio-version` 可选择 `latest`、确切版本或 `pinned`。构建下载原始 VSIX 到忽略的 `artifacts/codex-audio/<版本>/universal.vsix`，核验 Marketplace SHA-256、发布者、UI 宿主及五个麦克风命令。主 VSIX 的 `audio-companion/audio.vsix` 保存完整、未经修改的配套包，`manifest.json` 记录插件 ID、版本、目标、编辑器要求和 SHA-256；打包及安装前都核验完整性，官方包原有许可证随原包保留。Linux ARM64 配套 `fedaykindev.vcodex-audio-arm`，不使用无法在 Marketplace 解析的依赖 ID。离线构建复用快照中的 Audio 版本和已校验缓存；安装时无需下载配套包，但仍遵循 VS Code 的扩展安装规则。
+
+首次启动自动安装；点击麦克风会等待正在进行的安装。已有同版本或更新版本不会被重装、降级，已禁用的插件不被强制启用。安装失败会显示可重试提示，也可从命令面板运行 `Vcodex-Chamber: Install Bundled Microphone Extension`；VS Code 如果要求重新加载窗口，请按编辑器提示执行。官方 Audio 目标包的主 VSIX 同步要求官方 Audio 的最低 VS Code 版本。Remote SSH/容器工作区不自动安装远程主机的录音器到本地 UI；请在本地 VS Code 安装与桌面平台对应的 Audio，保持麦克风采集在本机。
 
 本轮审计的 Audio `26.930.61225` 要求 VS Code `^1.96.2`，提供 Windows x64/ARM64、Linux x64 和 macOS 原生录音器，未提供 Linux ARM64 录音器。本机 Linux ARM64 改用独立的 Vcodex Audio ARM 插件，仍优先探测官方 Audio，便于未来上游补齐支持。远程工作区使用兼容本地 UI 宿主的官方 Audio；ARM 适配不会录制 SSH/容器服务器的麦克风。
 
 ### Linux ARM64 录音程序
 
-官方 Codex Audio 完整扩展源码目前未在公开 `openai/codex` 仓库中找到，但其录音依赖 [PvRecorder](https://github.com/Picovoice/pvrecorder/tree/main/project) 公开 C 源码、采用 Apache 2.0。本项目从固定 commit 编译该依赖和一个独立的 stdin/stdout 桥，不修改或重发官方 Audio VSIX，也不依赖树莓派专用预编译包。`scripts/arm-audio-sources.json` 固定 PvRecorder、miniaudio commit 及每个文件的 SHA-256；构建先核验源码，打包再核验 ELF ARM64 架构、helper 源码、文件哈希、许可证和执行位。
+官方 Codex Audio 完整扩展源码目前未在公开 `openai/codex` 仓库中找到，但其录音依赖 [PvRecorder](https://github.com/Picovoice/pvrecorder/tree/main/project) 公开 C 源码、采用 Apache 2.0。本项目从固定 commit 编译该依赖和一个独立的 stdin/stdout 桥，不修改官方 Audio，也不依赖树莓派专用预编译包。`scripts/arm-audio-sources.json` 固定 PvRecorder、miniaudio commit 及每个文件的 SHA-256；构建先核验源码，打包再核验 ELF ARM64 架构、helper 源码、文件哈希、许可证和执行位。
 
 在 Linux ARM64 安装 C 编译器和 Node/Bun 后：
 
@@ -60,13 +62,13 @@ node scripts/build-arm-audio-vsix.mjs
 node scripts/build-vsix.mjs --target linux-arm64
 ```
 
-Actions 的 ARM runner 构建两个独立产物：Vcodex-Chamber 客户端及 Vcodex Audio ARM。录音源码和适配宿主位于 `packages/codex-audio-arm/`；原生录音器只出现在 Audio ARM VSIX 的 `native/linux-arm64/`，客户端包校验会拒绝任何内置麦克风。它动态使用系统 PulseAudio/PipeWire 或 ALSA，不需要 npm 原生模块或 Electron ABI 重编译；需要可访问的桌面音频服务、输入设备和 glibc（托管构建使用 Ubuntu 24.04）。不承诺 musl/Alpine 桌面录音支持。
+Actions 的 ARM runner 构建两个独立产物：Vcodex-Chamber 客户端及 Vcodex Audio ARM，并将 Audio 原包嵌入主 VSIX 以自动安装。录音源码和适配宿主位于 `packages/codex-audio-arm/`；原生录音器只出现在 Audio ARM VSIX 的 `native/linux-arm64/`，主插件不会直接加载它。它动态使用系统 PulseAudio/PipeWire 或 ALSA，不需要 npm 原生模块或 Electron ABI 重编译；需要可访问的桌面音频服务、输入设备和 glibc（托管构建使用 Ubuntu 24.04）。不承诺 musl/Alpine 桌面录音支持。
 
 Windows 跨平台打包独立 Audio ARM VSIX 时，可在 ARM Linux 上执行同一构建脚本，将其 `artifacts/arm-audio/linux-arm64/` 放到本机相同位置；或设置 `ARM_AUDIO_CC` 为 Linux ARM64 交叉编译器。缓存缺失、helper 源码变化、哈希或架构不符会明确失败，不会发布一个没有录音程序的 Audio ARM VSIX。`--offline` 只接受已校验缓存；单独的 `build-arm-audio.mjs --offline` 可用已校验源码重新编译。
 
 默认排除名称包含 monitor 的回环源并选择麦克风；指定输入设备时在 VS Code 用户设置填写 `vcodexAudio.inputDevice`（兼容旧 `captureCodex.voice.inputDevice`），名称来自 `native/linux-arm64/recorder --list-devices`。不要将系统扬声器监听当作麦克风。PCM16 单声道采样率从录音程序读取，音频仅在内存中交给现有听写/转写流程。适配插件是 UI 宿主扩展，使用独立 `_vcodex.audio.*` 命令，不覆盖官方 `_codex.microphone.*`；不包含登录、转写网络请求或模型。
 
-只构建客户端 VSIX 不再要求本地 C 编译器或 Audio ARM 原生缓存。全套发布仍需要单独构建 Audio ARM。验证脚本包含录音子进程、命令路由、失败后再次长按和并发停止回归。
+`build-vsix.mjs --target linux-arm64` 和 `--target all` 自动构建独立 Audio ARM，再放入主包。必须有经过校验的 ARM 原生缓存，或在 ARM Linux/设置交叉编译器的主机上构建；缺失配套包会停止打包。仅构建 x64 或 Windows ARM64 不需要 Linux ARM 编译器。验证脚本包含录音子进程、命令路由、失败后再次长按、并发停止，以及配套插件安装/完整性/重试回归。
 
 下载缓存位于 `artifacts/codex/<Codex版本>/downloads/`，临时解压位于同版本目标目录，暂存 runtime 位于 `packages/vscode/bin/<platform-arch>/`。多个暂存目录不会混入同一个 VSIX。打包前检查归档路径、符号链接、架构；打包后检查 VSIX TargetPlatform、所有运行资源 SHA-256、许可证和执行位，并比对当前 dist。标准 VSCE prepublish 只接受本项目脚本准备的目标包，避免裸 `vsce package` 生成混合平台包。
 

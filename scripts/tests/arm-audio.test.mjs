@@ -26,10 +26,10 @@ test('microphone routing, stop/cancel, failure and dictation contracts run on No
   const directory = await mkdtemp(join(tmpdir(), 'vcodex-arm-microphone-tests-'));
   try {
     const require = createRequire(join(extensionRoot, 'package.json'));
-    const entries = ['linuxArmMicrophone', 'dictation'];
+    const entries = ['linuxArmMicrophone', 'dictation', '../audioCompanion'];
     const files = [];
     for (const name of entries) {
-      const file = join(directory, `${name}.test.cjs`); files.push(file);
+      const file = join(directory, `${name.replace('../', '')}.test.cjs`); files.push(file);
       await require('esbuild').build({ entryPoints: [join(extensionRoot, `src/codex/${name}.test.ts`)], bundle: true, platform: 'node', format: 'cjs', outfile: file });
     }
     const env = { ...process.env }; delete env.NODE_TEST_CONTEXT;

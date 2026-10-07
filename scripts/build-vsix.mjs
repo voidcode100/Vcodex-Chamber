@@ -5,6 +5,9 @@ import { root, extensionRoot, targets, nativeTarget, targetInfo, prepareRuntime,
 import { vsce, Zip, vsixName, setExecutableAttributes, verifyVsix } from './lib/vsix-tools.mjs';
 import { selectBuildAudio } from './lib/codex-audio-tools.mjs';
 import { armAudioId } from './lib/arm-audio-tools.mjs';
+import { audioId } from './lib/codex-audio-releases.mjs';
+import { buildArmAudioVsix } from './build-arm-audio-vsix.mjs';
+import { embedAudioCompanion } from './lib/audio-companion.mjs';
 
 const { values } = parseArgs({ options: {
   target: { type: 'string', default: nativeTarget },
@@ -15,11 +18,12 @@ const { values } = parseArgs({ options: {
 const selected = values.target === 'all' ? targets : [...new Set(values.target.split(','))];
 selected.forEach(targetInfo);
 const selectedRuntime = await selectBuildRuntime({ version: values['codex-version'], manifest: values['runtime-manifest'], offline: values.offline });
-await selectBuildAudio(selectedRuntime, { version: values['audio-version'], offline: values.offline, pinned: values['codex-version'] === 'pinned' });
+const officialAudio = await selectBuildAudio(selectedRuntime, { version: values['audio-version'], offline: values.offline, pinned: values['codex-version'] === 'pinned' });
 const { version } = JSON.parse(await readFile(join(extensionRoot, 'package.json'), 'utf8'));
 const release = join(root, 'artifacts', `v${version}`);
 await mkdir(release, { recursive: true });
 const prepared = new Map();
+const armAudio = selected.includes('linux-arm64') ? await buildArmAudioVsix({ offline: values.offline }) : undefined;
 // Downloads are independent of the shared UI build. Limit download concurrency
 // to two so local machines need not decompress four runtimes at once.
 async function prepareAll() {
@@ -42,7 +46,10 @@ for (const target of selected) {
   const manifestPath = join(extensionRoot, 'package.json');
   const originalManifest = await readFile(manifestPath, 'utf8');
   const targetManifest = JSON.parse(originalManifest);
-  targetManifest.extensionPack = [target === 'linux-arm64' ? armAudioId : 'openai.codex-audio'];
+  // The audited companion is installed from the bundled VSIX on first activation.
+  // Marketplace dependencies cannot resolve our separately distributed ARM package.
+  delete targetManifest.extensionPack;
+  if (target !== 'linux-arm64') targetManifest.engines.vscode = selectedRuntime.audio.engine;
   const previous = { target: process.env.VCODEX_VSIX_TARGET, prebuilt: process.env.VCODEX_PACKAGE_PREBUILT };
   try {
     await writeFile(manifestPath, JSON.stringify(targetManifest, null, 2) + '\n');
@@ -56,6 +63,11 @@ for (const target of selected) {
   }
   const metadata = JSON.parse(await readFile(join(staged, 'codex-package.json'), 'utf8'));
   const zip = new Zip(packagePath);
+  await embedAudioCompanion(zip, target, target === 'linux-arm64' ? armAudio : officialAudio, {
+    id: target === 'linux-arm64' ? armAudioId : audioId,
+    version: target === 'linux-arm64' ? version : selectedRuntime.audio.version,
+    engine: target === 'linux-arm64' ? '^1.85.0' : selectedRuntime.audio.engine,
+  });
   setExecutableAttributes(zip, `extension/bin/${info.folder}/`, metadata.executableFiles);
   zip.writeZip(packagePath);
   await verifyVsix(packagePath, target, { verifyDist: true });

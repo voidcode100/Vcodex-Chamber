@@ -3,6 +3,8 @@ import { test } from 'node:test';
 import { Zip } from '../lib/vsix-tools.mjs';
 import { auditAudioZip, selectBuildAudio } from '../lib/codex-audio-tools.mjs';
 import { audioFromGallery, audioId, microphoneCommands, pinnedAudio, validateAudioManifest, resolveCodexAudio } from '../lib/codex-audio-releases.mjs';
+import { verifyAudioCompanion } from '../lib/audio-companion.mjs';
+import { createHash } from 'node:crypto';
 
 const property = (key, value) => ({ key, value });
 function gallery(versions, { verified = true } = {}) {
@@ -58,4 +60,24 @@ test('official Audio archive contains the UI host and microphone command contrac
   assert.throws(() => auditAudioZip(zip, pinnedAudio), /license/);
   zip.addFile('extension/package.json', Buffer.from(JSON.stringify({ name: 'codex-audio', publisher: 'other', version: pinnedAudio.version })));
   assert.throws(() => auditAudioZip(zip, pinnedAudio), /identity/);
+});
+
+test('main VSIX carries the byte-exact audited official Audio and rejects corrupted or mismatched companions', async () => {
+  const nested = new Zip();
+  nested.addFile('extension/package.json', Buffer.from(JSON.stringify({
+    name: 'codex-audio', publisher: 'openai', version: pinnedAudio.version,
+    engines: { vscode: pinnedAudio.engine }, extensionKind: ['ui'], main: './out/extension.js',
+  })));
+  nested.addFile('extension/out/extension.js', Buffer.from(microphoneCommands.join('\n')));
+  nested.addFile('extension/LICENSE.md', Buffer.from('Original license'));
+  const bytes = nested.toBuffer(), hash = createHash('sha256').update(bytes).digest('hex');
+  const audio = { ...pinnedAudio, sha256: hash }, zip = new Zip();
+  const descriptor = { id: audioId, version: audio.version, engine: audio.engine, sha256: hash, file: 'audio.vsix', target: 'linux-x64' };
+  zip.addFile('extension/audio-companion/manifest.json', Buffer.from(JSON.stringify(descriptor)));
+  zip.addFile('extension/audio-companion/audio.vsix', bytes);
+  assert.equal((await verifyAudioCompanion(zip, 'linux-x64', audio)).id, audioId);
+  await assert.rejects(verifyAudioCompanion(zip, 'linux-arm64', audio), /identity\/target/);
+  await assert.rejects(verifyAudioCompanion(zip, 'linux-x64', pinnedAudio), /snapshot/);
+  zip.addFile('extension/audio-companion/audio.vsix', Buffer.from('corrupted'));
+  await assert.rejects(verifyAudioCompanion(zip, 'linux-x64', audio), /integrity/);
 });

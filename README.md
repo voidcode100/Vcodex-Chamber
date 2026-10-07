@@ -19,7 +19,7 @@ Vcodex-Chamber 是基于 [OpenChamber](https://github.com/openchamber/openchambe
 
 1. 从 Release 下载 `Vcodex-Chamber-1.0.0.vsix`，在 VS Code 中使用“扩展：从 VSIX 安装”，然后重新加载窗口。旧开发版更新到首版可使用 `code --install-extension Vcodex-Chamber-1.0.0.vsix --force`。
 2. 已发布的首版通用 VSIX 为 Windows x64。新的平台构建提供 Windows/Linux 的 x64、ARM64 VSIX，每包包含对应架构的官方 Codex CLI 完整运行资源。Linux 直接打包上游 musl 运行包，不生成 deb/rpm 等发行版产物。选择 VS Code 扩展宿主的架构；Remote SSH 时以远端宿主为准。可通过 `captureCodex.codexBinary` 覆盖路径；Codex 未登录时在扩展首页按提示登录。
-3. 语音优先使用官方 [Codex Audio](https://marketplace.visualstudio.com/items?itemName=openai.codex-audio) 扩展；本机 Linux ARM64 在官方录音器不可用时，使用独立的 `Vcodex-Audio-ARM-<版本>-linux-arm64.vsix` 插件（需另外安装，与客户端分开分发）。默认听写复用 Codex 的 ChatGPT 登录；也支持配置 OpenAI-compatible 转写服务。实现及验证范围见 [DICTATION.md](packages/vscode/DICTATION.md)。
+3. 主 VSIX 随包携带独立麦克风插件，首次本地启动后自动安装，扩展列表中显示两个插件：Windows/Linux x64 和 Windows ARM64 配套官方 [Codex Audio](https://marketplace.visualstudio.com/items?itemName=openai.codex-audio)，Linux ARM64 配套 `Vcodex Audio ARM`。已有更新版本不会降级。默认听写复用 Codex 的 ChatGPT 登录；也支持配置 OpenAI-compatible 转写服务。Remote SSH 需在本地桌面安装对应的 Audio。实现及验证范围见 [DICTATION.md](packages/vscode/DICTATION.md)。
 4. 将 `Vcodex-Chamber-WindowsSender-1.0.0-win-x64.zip` 解压到固定目录，运行其中的 `WindowsSender.WinUI.exe`。**保留完整解压目录，不能只复制 EXE。** WindowsSender 使用自包含的 .NET / Windows App SDK，不要求用户额外安装 .NET SDK。
 5. 在客户端设置的“WindowsSender 与 Codex 提词器”页面启动接收端，将 VS Code 主机地址、端口、配对令牌和证书指纹填入 WindowsSender 并保存。同机地址用 `127.0.0.1`，默认端口 `43127`；跨机器时两端需要能访问该端口。
 6. 打开可写 Codex 会话，或固定目标会话。截图键加入会话输入框，发送键提交；录音停止后自动转写并提交。会话被占用、归档或忙碌时保留待处理内容并提示原因。

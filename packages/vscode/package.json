@@ -5,9 +5,6 @@
   "version": "1.0.0",
   "publisher": "fedaykindev",
   "private": true,
-  "extensionPack": [
-    "openai.codex-audio"
-  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/voidcode100/Vcodex-Chamber.git"
@@ -35,6 +32,7 @@
   "main": "./dist/extension.js",
   "l10n": "./l10n",
   "activationEvents": [
+    "onStartupFinished",
     "onCommand:openchamber.openSidebar",
     "onCommand:openchamber.attachExplorerToChat",
     "onCommand:captureCodex.openPrompter",
@@ -174,6 +172,11 @@
         "command": "captureCodex.showLogs",
         "category": "Vcodex-Chamber",
         "title": "Show Logs"
+      },
+      {
+        "command": "captureCodex.installAudio",
+        "category": "Vcodex-Chamber",
+        "title": "Install Bundled Microphone Extension"
       },
       {
         "command": "captureCodex.login",

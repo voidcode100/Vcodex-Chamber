@@ -21,8 +21,6 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Sender integration tests failed' }
     & node scripts/verify-dictation-transport.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Dictation transport tests failed' }
-    & node scripts/build-arm-audio-vsix.mjs
-    if ($LASTEXITCODE -ne 0) { throw 'Standalone ARM Audio packaging failed' }
     & node scripts/build-vsix.mjs --target all
     if ($LASTEXITCODE -ne 0) { throw 'Platform VSIX packaging failed' }
     & bun run test:ui

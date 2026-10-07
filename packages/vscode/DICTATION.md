@@ -13,7 +13,7 @@
 
 ## 当前实现
 
-- 本地和 Actions VSIX 构建会查询官方 Marketplace 最新稳定 Codex Audio，下载原包到忽略的审计缓存，校验官方 SHA-256、UI 宿主及五个命令；本项目 VSIX 仅包含来源清单，继续通过 `extensionPack` 安装和更新官方 Audio。当前审计版本 `26.930.61225` 没有 Linux ARM64 原生录音器；本机 ARM Linux 使用独立的 Vcodex Audio ARM 插件和 PvRecorder 源码构建适配，优先探测官方 Audio。Remote SSH 不会回退到服务器录音。详见 [构建说明](../../docs/builds.md)。
+- 本地和 Actions VSIX 构建会查询官方 Marketplace 最新稳定 Codex Audio，下载原包到忽略的审计缓存，校验官方 SHA-256、UI 宿主及五个命令；主 VSIX 随包携带完整的独立 Audio VSIX，首次本地启动通过 VS Code 安装，安装前再次检查 SHA-256。Windows/Linux x64 及 Windows ARM64 使用未经修改的官方包；Linux ARM64 使用独立 Vcodex Audio ARM，不依赖 Marketplace 上不存在的适配插件 ID。已有更新版本不会降级，安装可重试。当前官方版本 `26.930.61225` 没有 Linux ARM64 原生录音器。Remote SSH 不会回退到服务器录音，也不安装远程架构的 Audio 到本地 UI。详见 [构建说明](../../docs/builds.md)。
 
 - 官方 Codex Audio 采集 PCM16 单声道，使用实际采样率生成 WAV。删除 Webview ScriptProcessor fallback、线程 Realtime、猜测的 transcript 事件和 RPC 落盘诊断。
 - ARM 适配复用官方底层 PvRecorder（Apache 2.0），构建固定源码及 miniaudio 哈希，独立子进程通过 stdout 提供 PCM、stderr 提供状态、stdin 停止。默认过滤扬声器 monitor；可设置适配插件的 `vcodexAudio.inputDevice`。停止后读尽最后一帧、取消丢弃、错误终止、退出释放录音进程。没有复制官方扩展代码，没有新增持久化音频或诊断日志。

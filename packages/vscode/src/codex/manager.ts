@@ -59,7 +59,7 @@ export class CodexManager implements OpenCodeManager, vscode.Disposable {
   private voiceState: { state: 'recording' | 'uploading' | 'idle' | 'error'; error?: string; sessionId?: string } = { state: 'idle' };
   getVoiceState() { return { ...this.voiceState, canRetry: !this.voiceSubmissionUncertain && this.voiceState.state === 'error' && (this.dictation.active || Boolean(this.voiceTranscript)) }; }
 
-  constructor(private readonly context: vscode.ExtensionContext, private readonly output?: vscode.OutputChannel) {
+  constructor(private readonly context: vscode.ExtensionContext, private readonly output?: vscode.OutputChannel, ensureAudio?: () => Promise<void>) {
     this.resolver = new CodexExecutableResolver(context);
     const configured = vscode.workspace.getConfiguration('captureCodex').get<string>('codexBinary')
       || undefined;
@@ -83,7 +83,10 @@ export class CodexManager implements OpenCodeManager, vscode.Disposable {
     this.auth = new CodexAuth((method, params) => this.backend.request(method, params), state => this.authListeners.forEach(listener => listener(state)));
     this.backend.onEvent(event => this.auth.onEvent(event.method, event.params));
     const microphone = new MicrophoneRouter({
-      official: <T>(name: string, ...args: unknown[]) => Promise.resolve(vscode.commands.executeCommand<T>(name, ...args)),
+      official: async <T>(name: string, ...args: unknown[]) => {
+        if (name === '_codex.microphone.available') await vscode.extensions.getExtension('openai.codex-audio')?.activate();
+        return await vscode.commands.executeCommand<T>(name, ...args) as T;
+      },
       arm: { command: async <T>(name: string, ...args: unknown[]): Promise<T> => {
         const extension = vscode.extensions.getExtension('fedaykindev.vcodex-audio-arm');
         if (!extension) throw new Error('请安装并启用独立的 Vcodex Audio ARM 插件（linux-arm64 VSIX）。');
@@ -101,7 +104,10 @@ export class CodexManager implements OpenCodeManager, vscode.Disposable {
           this.voiceAuthIdentity = `${auth.authMethod}:${authIdentity(auth.authToken)}`;
         }
       },
-      command: <T>(name: string, ...args: unknown[]) => microphone.command<T>(name, ...args),
+      command: async <T>(name: string, ...args: unknown[]) => {
+        if (name === '_codex.microphone.available') await ensureAudio?.();
+        return microphone.command<T>(name, ...args);
+      },
       state: (state, error) => this.setVoiceState(state, error),
       transcribe: (pcm, sampleRate, signal) => {
         const config = vscode.workspace.getConfiguration('captureCodex');
