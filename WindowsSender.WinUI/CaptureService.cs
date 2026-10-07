@@ -214,12 +214,16 @@ internal sealed class CaptureService : IAsyncDisposable
         await voiceGate.WaitAsync(lifetime.Token);
         try
         {
-            if (voiceActive) { StatusChanged?.Invoke("客户端已经在录音，按停止快捷键转写并发送。"); return; }
+            // A failed stop retains its request ID for an explicit stop/retry.
+            // A new key-down must reach the client instead of mistaking that
+            // retained recording for an active microphone. The client decides
+            // whether it can discard a failed transcription safely.
+            if (voiceActive && stopRequestId is null) { StatusChanged?.Invoke("客户端已经在录音，按停止快捷键转写并发送。"); return; }
             settings.Validate(); startRequestId ??= Guid.NewGuid().ToString("N");
             StatusChanged?.Invoke("正在请求客户端麦克风…");
             var ack = await VoiceControl("start", startRequestId, string.IsNullOrWhiteSpace(settings.TargetSessionId) ? null : settings.TargetSessionId);
             voiceSession = ack.TryGetProperty("sessionId", out var session) ? session.GetString() : null;
-            voiceActive = true; startRequestId = null;
+            voiceActive = true; startRequestId = null; stopRequestId = null;
             StatusChanged?.Invoke("客户端正在录音，按停止快捷键转写并自动发送。");
         }
         finally { voiceGate.Release(); }

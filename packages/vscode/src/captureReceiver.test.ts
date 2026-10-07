@@ -148,19 +148,38 @@ nodeTest('voice controls wait for acknowledgment, retry failure, deduplicate acr
   } finally { await h.cleanup(); }
 });
 
-nodeTest('real .NET WindowsSender stages multiple captures, sends one turn, honors TLS pin and voice acknowledgments', { skip: process.platform !== 'win32' }, async () => {
+nodeTest('real .NET WindowsSender stages captures, pins TLS and recovers a held key after failed transcription', { skip: process.platform !== 'win32', timeout: 180_000 }, async () => {
   const h = await harness();
   const executable = resolve('artifacts/test/windowssender/WindowsSender.Tests.dll');
   const child = spawn('dotnet', [executable, String(h.port), 'pairing-token', h.receiver.getCertificateFingerprint(), join(h.storage, 'sender')], { windowsHide: true });
   const lines = createInterface({ input: child.stdout });
-  let pending: ((value: Record<string, any>) => void) | undefined;
-  let stderr = ''; child.stderr.on('data', chunk => { stderr += chunk; });
-  lines.on('line', line => { pending?.(JSON.parse(line)); pending = undefined; });
-  const command = (command: string) => new Promise<Record<string, any>>((done, reject) => {
-    const timer = setTimeout(() => reject(new Error(`sender timed out: ${stderr}`)), 15000);
-    pending = value => { clearTimeout(timer); done(value); }; child.stdin.write(JSON.stringify({ command }) + '\n');
+  let pending: { name: string; resolve: (value: Record<string, any>) => void; reject: (error: Error) => void; timer: NodeJS.Timeout } | undefined;
+  let stderr = ''; child.stderr.on('data', chunk => { stderr = (stderr + chunk).slice(-4000); });
+  const waiting = (name: string, timeout: number) => new Promise<Record<string, any>>((resolve, reject) => {
+    assert.equal(pending, undefined, 'test commands must be sequential');
+    const timer = setTimeout(() => { pending = undefined; reject(new Error(`sender timed out during ${name} (${timeout}ms): ${stderr || 'no stderr'}`)); }, timeout);
+    pending = { name, resolve, reject, timer };
   });
+  const startup = waiting('runtime startup', 60_000);
+  const fail = (error: Error) => { const current = pending; pending = undefined; if (current) { clearTimeout(current.timer); current.reject(error); } };
+  child.on('error', fail);
+  child.stdin.on('error', fail);
+  child.on('exit', (code, signal) => fail(new Error(`sender exited during ${pending?.name || 'idle'} (${code}/${signal}): ${stderr}`)));
+  lines.on('line', line => {
+    let value: Record<string, any>;
+    try { value = JSON.parse(line); } catch { fail(new Error(`sender emitted invalid JSON during ${pending?.name}`)); return; }
+    const current = pending; pending = undefined;
+    if (current) { clearTimeout(current.timer); current.resolve(value); }
+  });
+  const command = async (command: string) => {
+    const result = waiting(command, 30_000);
+    child.stdin.write(JSON.stringify({ command }) + '\n', error => { if (error) fail(error); });
+    const value = await result;
+    console.log(`WindowsSender integration: ${command} -> ${value.ok ? 'ok' : 'rejected'}`);
+    return value;
+  };
   try {
+    assert.equal((await startup).ready, true);
     const seeded = await command('seed'); assert.equal(seeded.ok, true);
     assert.equal((await command('stage')).ok, true); assert.equal(h.turns.length, 0); assert.equal(h.receiver.getPendingCaptures().length, 2);
     assert.equal((await command('stage')).ok, true); assert.equal(h.receiver.getPendingCaptures().length, 2);
@@ -171,6 +190,14 @@ nodeTest('real .NET WindowsSender stages multiple captures, sends one turn, hono
     h.failVoice(); assert.equal((await command('stop')).ok, false);
     assert.equal((await command('stop')).result, '测试转写');
     assert.equal((await command('cancel')).ok, true);
+    const voiceBegin = h.voiceCalls.length;
+    assert.equal((await command('hold-down')).result, true);
+    h.failVoice(); assert.equal((await command('hold-up')).ok, false);
+    assert.equal((await command('hold-down')).result, true, 'the next key-down must restart after the failed short recording');
+    assert.equal((await command('hold-down')).result, true, 'holding/repeat must not trigger another start');
+    assert.equal(h.voiceCalls.at(-1), 'start', 'fresh capture starts before the held key is released');
+    assert.equal((await command('hold-up')).ok, true);
+    assert.deepEqual(h.voiceCalls.slice(voiceBegin), ['start', 'stop', 'start', 'stop']);
     assert.equal((await command('bad-pin')).ok, false); await command('restore-pin');
     assert.equal((await command('bad-token')).ok, false); await command('restore-token');
     await command('seed'); await command('stage');
@@ -189,5 +216,5 @@ nodeTest('real .NET WindowsSender stages multiple captures, sends one turn, hono
     assert.equal((await command('remove-all')).result, 1);
     assert.equal((await command('input-tests')).result.passed, 12);
     assert.equal((await command('validate-hotkeys')).ok, false);
-  } finally { child.stdin.end(); child.kill(); lines.close(); await h.cleanup(); }
+  } finally { if (pending) clearTimeout(pending.timer); pending = undefined; child.stdin.end(); child.kill(); lines.close(); await h.cleanup(); }
 });

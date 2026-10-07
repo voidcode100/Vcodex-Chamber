@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { releasePlan, verifyReleaseAssets } from '../publish-release.mjs';
@@ -29,6 +30,15 @@ test('stable releases require matching version tags, unsupported events cannot p
   for (const bad of [{ GITHUB_REF: 'refs/heads/main', GITHUB_EVENT_NAME: 'push' }, { GITHUB_REF: 'refs/tags/v1.0.1', GITHUB_EVENT_NAME: 'push' }, { GITHUB_EVENT_NAME: 'pull_request' }, { GITHUB_SHA: 'main' }, { GITHUB_RUN_ID: '../foreign' }]) {
     assert.throws(() => releasePlan({ ...base, ...bad }));
   }
+});
+
+test('manual builds can select a generated prerelease tag; stable tag checks still apply to pushes', () => {
+  const execute = (event, ref) => spawnSync(process.execPath, ['scripts/release-version.mjs'], {
+    env: { ...process.env, GITHUB_EVENT_NAME: event, GITHUB_REF: ref, GITHUB_OUTPUT: '' }, encoding: 'utf8', windowsHide: true,
+  });
+  assert.equal(execute('workflow_dispatch', 'refs/tags/v1.0.0-build.1234.1').status, 0);
+  assert.equal(execute('push', 'refs/tags/v1.0.0').status, 0);
+  assert.notEqual(execute('push', 'refs/tags/v1.0.1').status, 0);
 });
 
 test('release upload rejects changed assets and incomplete or extra checksums', async () => {

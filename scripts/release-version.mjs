@@ -7,6 +7,6 @@ const sender = (await readFile(resolve(root, 'WindowsSender.WinUI/WindowsSender.
 const audio = JSON.parse(await readFile(resolve(root, 'packages/codex-audio-arm/package.json'), 'utf8'));
 const version = manifest.version;
 if (!/^\d+\.\d+\.\d+$/.test(version) || workspace.version !== version || sender !== version || audio.version !== version) throw new Error('Workspace, client, ARM Audio and sender versions must match MAJOR.MINOR.PATCH');
-if (process.env.GITHUB_REF?.startsWith('refs/tags/') && process.env.GITHUB_REF !== `refs/tags/v${version}`) throw new Error('Version tag must match source versions');
+if (process.env.GITHUB_EVENT_NAME !== 'workflow_dispatch' && process.env.GITHUB_REF?.startsWith('refs/tags/') && process.env.GITHUB_REF !== `refs/tags/v${version}`) throw new Error('Version tag must match source versions');
 if (process.env.GITHUB_OUTPUT) await appendFile(process.env.GITHUB_OUTPUT, `version=${version}\n`);
 console.log(version);

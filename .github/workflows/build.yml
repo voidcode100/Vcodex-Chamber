@@ -2,7 +2,7 @@ name: Build and verify distributions
 
 on:
   push:
-    tags: ['v*']
+    tags: ['v*', '!v*-build.*']
   workflow_dispatch:
     inputs:
       draft:

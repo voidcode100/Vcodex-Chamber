@@ -5,6 +5,16 @@ var settings = new SenderSettings { Host = "127.0.0.1", Port = int.Parse(args[0]
 var queue = args[3]; Directory.CreateDirectory(queue);
 var client = new CaptureService(settings, queue);
 await using var lifetime = client;
+var heldKey = new HotkeyStateMachine(new SenderSettings { VoiceHoldToTalk = true, VoiceHoldHotkeyModifiers = 0, VoiceHoldHotkeyVirtualKey = 5 });
+Task heldAction = Task.CompletedTask;
+heldKey.Action += action => {
+    heldAction = heldAction.ContinueWith(async _ => {
+        if (action == "voiceHold") await client.StartVoiceAsync();
+        else if (action == "voiceRelease" && client.VoiceActive) await client.StopVoiceAsync();
+    }, TaskScheduler.Default).Unwrap();
+};
+// Separate runtime startup from individual protocol operations on cold CI hosts.
+Console.WriteLine(JsonSerializer.Serialize(new { ready = true }));
 while (await Console.In.ReadLineAsync() is { } line)
 {
     try
@@ -30,6 +40,8 @@ while (await Console.In.ReadLineAsync() is { } line)
             case "start": await client.StartVoiceAsync(); result = client.VoiceActive; break;
             case "stop": result = await client.StopVoiceAsync(); break;
             case "cancel": await client.CancelVoiceAsync(); result = client.VoiceActive; break;
+            case "hold-down": heldKey.Feed(5, true, 0); await heldAction; result = client.VoiceActive; break;
+            case "hold-up": heldKey.Feed(5, false, 0); await heldAction; result = client.VoiceActive; break;
             case "status": result = await client.GetStatusAsync(); break;
             case "remove-last": result = await client.RemoveCapturesAsync(); break;
             case "remove-all": result = await client.RemoveCapturesAsync(all: true); break;
